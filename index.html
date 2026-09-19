@@ -157,6 +157,21 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
 .mic-btn.busy{background:var(--s3);color:var(--gold2)}
 .hint{text-align:center;font-size:10.5px;color:var(--text3);margin-top:7px;height:14px}
 
+/* ---------- FALAR (ecrã de destaque à voz, mobile) ---------- */
+.voz-hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding-top:16vh}
+.voz-mic-deco{width:88px;height:88px;border-radius:50%;background:var(--s2);border:1px solid var(--border2);display:grid;place-items:center;font-size:38px;margin-bottom:10px}
+.voz-hero h1{font-family:var(--serif);font-style:italic;font-weight:400;font-size:26px;color:var(--text)}
+.voz-hero p{font-size:12.5px;color:var(--text2);max-width:280px;line-height:1.5}
+@media(max-width:859px){
+  /* fora do ecrã "Falar", o dock flutuante sai do caminho: a voz passa a
+     ter ecrã próprio em vez de sobrepor as outras abas */
+  body:not(.tab-voz) .dock{display:none}
+  body:not(.tab-voz) .view{padding-bottom:calc(58px + var(--safe-b))}
+  body.tab-voz .mic-bar{padding:11px 11px 11px 22px}
+  body.tab-voz .mic-txt{font-size:14.5px}
+  body.tab-voz .mic-btn{width:66px;height:66px;font-size:26px}
+}
+
 /* ---------- SHEET (confirmação) ---------- */
 .scrim{position:fixed;inset:0;background:rgba(4,5,8,.72);backdrop-filter:blur(3px);z-index:50;display:none}
 .scrim.on{display:block}
@@ -306,6 +321,11 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
 
     <!-- ====================== VIEWS ====================== -->
     <main>
+      <section class="view" id="v-voz"><div class="wrap"><div class="voz-hero">
+        <div class="voz-mic-deco">🎙</div>
+        <h1>Fala ou escreve</h1>
+        <p>Diz o que aconteceu com a lead — a Secretária trata do resto.</p>
+      </div></div></section>
       <section class="view on" id="v-hoje"><div class="wrap" id="c-hoje"></div></section>
       <section class="view" id="v-pipe"><div class="wrap" id="c-pipe"></div></section>
       <section class="view" id="v-tarefas"><div class="wrap" id="c-tarefas"></div></section>
@@ -743,6 +763,7 @@ const leadDe=id=>S.leads.find(l=>l.id===id);
 const nomeLead=id=>{const l=leadDe(id);return l?l.nome:'—';};
 
 const ICONS={
+  voz:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>',
   hoje:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>',
   pipe:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17v-5M12 17V7M18 17v-8"/></svg>',
   tarefas:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12.5l2.4 2.4L16 9.5"/></svg>',
@@ -750,6 +771,7 @@ const ICONS={
   equipa:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9.6" r="2.3"/><path d="M3.3 19.2c.5-3.1 2.8-5.2 5.7-5.2s5.2 2.1 5.7 5.2"/><path d="M15.2 14.3c2.1.2 3.8 1.9 4.3 4.4"/></svg>',
 };
 const TABS=[
+  {id:'voz',    n:'Falar',   ic:ICONS.voz,    cnt:()=>0},
   {id:'hoje',   n:'Hoje',    ic:ICONS.hoje,   cnt:()=>minhasTarefas().filter(t=>t.estado!=='concluida').length},
   {id:'pipe',   n:'Pipeline',ic:ICONS.pipe,   cnt:()=>ativos().length},
   {id:'tarefas',n:'Tarefas', ic:ICONS.tarefas,cnt:()=>minhasTarefas().filter(t=>t.estado!=='concluida').length},
@@ -758,7 +780,9 @@ const TABS=[
 ];
 function setTab(id){ TAB=id;
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
-  $('v-'+id).classList.add('on'); render();
+  $('v-'+id).classList.add('on');
+  document.body.classList.toggle('tab-voz',id==='voz');
+  render();
 }
 function renderNav(){
   const items=TABS.map(t=>({...t,cnt:t.cnt()}));
@@ -778,7 +802,7 @@ function render(){
   const wc=$('whoChip'), wr=$('whoChipR');
   if(wc)wc.innerHTML=whoHtml; if(wr)wr.innerHTML=whoHtml;
   renderNav();
-  ({hoje:rHoje,pipe:rPipe,tarefas:rTarefas,agenda:rAgenda,equipa:rEquipa}[TAB]||rHoje)();
+  ({voz:()=>{},hoje:rHoje,pipe:rPipe,tarefas:rTarefas,agenda:rAgenda,equipa:rEquipa}[TAB]||rHoje)();
 }
 
 function secH(titulo,cnt){ return '<div class="sec-h"><h2>'+esc(titulo)+'</h2><div class="line"></div>'
@@ -1273,6 +1297,7 @@ function notaRapida(id){
   if(notaGravando){ pararDitarNota(); return; }
   if(!SR || isIOS){
     fecharPainel();
+    setTab('voz');
     $('micTxt').value='Nota sobre '+l.nome+': ';
     setTimeout(()=>{ const el=$('micTxt'); el.focus(); el.setSelectionRange(el.value.length,el.value.length); },260);
     return;
@@ -1438,6 +1463,15 @@ async function arrancar(){
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){ fecharSheet(); fecharPainel(); closeM('mCfg'); closeM('mEvento'); closeM('mNovaLead'); }
 });
+
+/* No telemóvel, o ecrã de arranque é o da voz — a interação principal do
+   comercial. No desktop mantém-se o "Hoje" (mais espaço, outro fluxo). */
+if(window.innerWidth<860){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  $('v-voz').classList.add('on');
+  document.body.classList.add('tab-voz');
+  TAB='voz';
+}
 arrancar();
 </script>
 </body>
