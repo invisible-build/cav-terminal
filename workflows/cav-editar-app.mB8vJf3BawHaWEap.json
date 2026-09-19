@@ -202,6 +202,31 @@
               },
               "renameOutput": true,
               "outputKey": "criar_lead"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "995ac8c4-811a-424f-a425-00cbbe5e6066",
+                    "leftValue": "={{ $json.body.acao}}",
+                    "rightValue": "atualizar_checklist",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "atualizar_checklist"
             }
           ]
         },
@@ -2215,6 +2240,71 @@
           "name": "Airtable Personal Access Token account"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appIdD2RG5S0lWvfV",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblO1ODpXI5GInKGn",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.body.lead_id }}",
+            "checklist_documentos": "={{ JSON.stringify($json.body.checklist_documentos) }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "checklist_documentos",
+              "displayName": "checklist_documentos",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        352,
+        336
+      ],
+      "id": "c009e4c7-03db-4d31-8fab-1de66dc02c9c",
+      "name": "Atualizar Checklist",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
     }
   ],
   "connections": {
@@ -2276,6 +2366,13 @@
         [
           {
             "node": "Create a record1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Atualizar Checklist",
             "type": "main",
             "index": 0
           }
@@ -2360,6 +2457,17 @@
       ]
     },
     "Create a record1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Checklist": {
       "main": [
         [
           {

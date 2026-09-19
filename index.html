@@ -520,6 +520,29 @@ const NOME_ESTAGIO={lead:'Lead',aguarda_documentos:'Documentos',aguarda_decisao_
   escritura_marcada:'Escritura',fecho:'Fecho',nutricao:'Nutrição'};
 const rotulo=e=>NOME_ESTAGIO[e]||e||'—';
 
+/* Checklist de documentos (fase aguarda_documentos). Serve de ponto de partida
+   quando a lead ainda não tem checklist_documentos guardado no Airtable —
+   a primeira marcação grava esta lista completa, já com o item alterado. */
+const CHECKLIST_TEMPLATE=[
+  {item:'CC / BI (todos os titulares)',categoria:'credito'},
+  {item:'Comprovativo de morada',categoria:'credito'},
+  {item:'Último IRS + nota de liquidação',categoria:'credito'},
+  {item:'3 últimos recibos de vencimento',categoria:'credito'},
+  {item:'3 últimos extractos bancários',categoria:'credito'},
+  {item:'Mapa de responsabilidades (Banco de Portugal)',categoria:'credito'},
+  {item:'Declaração da entidade patronal',categoria:'credito'},
+  {item:'Caderneta predial urbana',categoria:'imovel'},
+  {item:'Certidão permanente do registo predial',categoria:'imovel'},
+  {item:'Licença de utilização/habitação',categoria:'imovel'},
+  {item:'Ficha técnica de habitação',categoria:'imovel'},
+  {item:'Certificado energético',categoria:'imovel'},
+  {item:'CPCV (se existir)',categoria:'imovel'},
+];
+const NOME_CATEGORIA_DOC={credito:'Crédito',imovel:'Imóvel'};
+const checklistDe=l=>(Array.isArray(l.checklist_documentos)&&l.checklist_documentos.length)
+  ? l.checklist_documentos
+  : CHECKLIST_TEMPLATE.map(t=>({...t,estado:'pendente'}));
+
 /* ---------- 4. API ---------- */
 async function apiDados(){
   const r=await fetch(url(CFG.dados),{method:'POST',headers:headers(),
@@ -1209,6 +1232,7 @@ function abrirLead(id){
     +'</div>'
     +'<button class="opt yes" style="margin-top:9px;text-align:center" onclick="guardarLead(\''+id+'\')">💾 Guardar alterações</button>'
     +'<datalist id="dlOrigens"><option value="Facebook Ads"><option value="Instagram"><option value="Google Ads"><option value="Site"><option value="Referência"><option value="Feira"><option value="Chamada fria"><option value="WhatsApp"></datalist>';
+  if(l.estagio==='aguarda_documentos') h+=cardChecklist(id,l);
   h+='<div class="card" style="margin-top:9px">'
     +'<div class="fld" style="margin-bottom:8px"><label>Adicionar anotação</label><textarea id="edNota" rows="3" placeholder="Escreve uma nota sobre esta lead…"></textarea></div>'
     +'<button class="opt yes" style="text-align:center" onclick="guardarNota(\''+id+'\')">＋ Adicionar ao histórico</button>'
@@ -1318,6 +1342,39 @@ async function guardarNota(id){
     await apiEditar({acao:'nota_manual',lead_id:id,nota:txt});
     toast('Nota adicionada','ok');
     await refresh();
+    if(LEAD_ABERTA===id) abrirLead(id);
+  }catch(e){ toast(e.message,'err'); }
+  finally{ OCUPADO=false; }
+}
+function cardChecklist(id,l){
+  const cl=checklistDe(l);
+  const recebidos=cl.filter(it=>it.estado==='recebido').length;
+  const porCategoria={};
+  cl.forEach((it,idx)=>{ const c=it.categoria||'outros'; (porCategoria[c]=porCategoria[c]||[]).push({...it,idx}); });
+  let h='<div class="card" style="margin-top:9px">'
+    +'<div class="fld" style="margin-bottom:2px"><label>Checklist de documentos ('+recebidos+'/'+cl.length+')</label></div>';
+  h+=Object.keys(porCategoria).map(cat=>
+    '<div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--text2);margin:10px 0 4px">'
+      +esc(NOME_CATEGORIA_DOC[cat]||cat)+'</div>'
+    +porCategoria[cat].map(it=>
+      '<label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12.5px;cursor:pointer">'
+        +'<input type="checkbox" '+(it.estado==='recebido'?'checked':'')+' onchange="toggleChecklistItem(\''+id+'\','+it.idx+')">'
+        +'<span'+(it.estado==='recebido'?' style="text-decoration:line-through;color:var(--text3)"':'')+'>'+esc(it.item)+'</span>'
+      +'</label>'
+    ).join('')
+  ).join('');
+  return h+'</div>';
+}
+async function toggleChecklistItem(id,idx){
+  if(OCUPADO) return;
+  const l=leadDe(id); if(!l) return;
+  const cl=checklistDe(l).map(it=>({...it}));
+  if(!cl[idx]) return;
+  cl[idx].estado = cl[idx].estado==='recebido' ? 'pendente' : 'recebido';
+  OCUPADO=true;
+  try{
+    await apiEditar({acao:'atualizar_checklist',lead_id:id,checklist_documentos:cl});
+    l.checklist_documentos=cl;
     if(LEAD_ABERTA===id) abrirLead(id);
   }catch(e){ toast(e.message,'err'); }
   finally{ OCUPADO=false; }
