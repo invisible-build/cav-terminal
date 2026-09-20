@@ -159,7 +159,10 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
 
 /* ---------- FALAR (ecrã de destaque à voz, mobile) ---------- */
 .voz-hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding-top:16vh}
-.voz-mic-deco{width:88px;height:88px;border-radius:50%;background:var(--s2);border:1px solid var(--border2);display:grid;place-items:center;font-size:38px;margin-bottom:10px}
+.voz-mic-deco{width:88px;height:88px;border-radius:50%;background:var(--s2);border:1px solid var(--border2);display:grid;place-items:center;font-size:38px;margin-bottom:10px;transition:transform .12s}
+.voz-mic-deco:active{transform:scale(.95)}
+.voz-mic-deco.rec{background:var(--red2);border-color:var(--red2);color:#fff;animation:rec 1.4s infinite}
+.voz-mic-deco.busy{background:var(--s3);color:var(--gold2)}
 .voz-hero h1{font-family:var(--serif);font-style:italic;font-weight:400;font-size:26px;color:var(--text)}
 .voz-hero p{font-size:12.5px;color:var(--text2);max-width:280px;line-height:1.5}
 @media(max-width:859px){
@@ -322,7 +325,7 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
     <!-- ====================== VIEWS ====================== -->
     <main>
       <section class="view" id="v-voz"><div class="wrap"><div class="voz-hero">
-        <div class="voz-mic-deco">🎙</div>
+        <button class="voz-mic-deco" id="vozBtn" onclick="micTap()">🎙</button>
         <h1>Fala ou escreve</h1>
         <p>Diz o que aconteceu com a lead — a Secretária trata do resto.</p>
       </div></div></section>
@@ -618,6 +621,11 @@ function micEstado(e){
   const b=$('micBtn');
   b.className='mic-btn'+(e==='rec'?' rec':e==='busy'?' busy':'');
   b.textContent = e==='rec'?'■' : e==='busy'?'…' : '🎙';
+  const v=$('vozBtn');
+  if(v){
+    v.className='voz-mic-deco'+(e==='rec'?' rec':e==='busy'?' busy':'');
+    v.textContent = e==='rec'?'■' : e==='busy'?'…' : '🎙';
+  }
 }
 function hint(t){ $('hint').textContent=t||''; }
 
