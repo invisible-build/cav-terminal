@@ -399,6 +399,11 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
       <div class="help">Usado pelos formulários manuais (agenda, notas, valores, tarefas, origem) — não passa pela interpretação da IA.</div>
     </div>
     <div class="fld">
+      <label>Caminho — calendário (.ics)</label>
+      <input id="cfgIcs" placeholder="cav-agenda-ics">
+      <div class="help">Usado pelo link de sincronização com o Google Calendar / Calendário da Apple (na aba Agenda).</div>
+    </div>
+    <div class="fld">
       <label>Chave da app (opcional)</label>
       <input id="cfgKey" placeholder="deixa vazio se não usares">
       <div class="help">Enviada no cabeçalho <span style="font-family:var(--mono)">x-cav-key</span>. Serve para o n8n recusar pedidos de fora.</div>
@@ -481,6 +486,26 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
   </div>
 </div>
 
+<!-- ====================== MODAL SINCRONIZAR CALENDÁRIO ====================== -->
+<div class="modal" id="mCalendario">
+  <div class="modal-in">
+    <h3>Sincronizar agenda</h3>
+    <div class="help" style="margin-bottom:14px">Adiciona isto uma vez ao calendário do telemóvel — os compromissos daqui passam a aparecer lá automaticamente. Actualiza de hora a hora, não instantâneo; editar no telemóvel não muda nada aqui (é só de leitura).</div>
+    <div class="fld">
+      <label>iPhone / Calendário da Apple</label>
+      <a class="opt yes" style="display:block;text-align:center;text-decoration:none" id="calLinkWebcal" href="#">📅 Adicionar ao Calendário</a>
+    </div>
+    <div class="fld">
+      <label>Google Calendar — Definições → Adicionar calendário → De um URL</label>
+      <input id="calLinkHttps" readonly onclick="this.select()">
+      <button class="opt" style="margin-top:8px;text-align:center" onclick="copiarLinkCalendario()">Copiar link</button>
+    </div>
+    <div class="m-act">
+      <button class="cancel" onclick="closeM('mCalendario')">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -496,6 +521,7 @@ const CFG_DEF={
   inbound:'cav-inbound',
   dados:'cav-dados',
   editar:'cav-editar',
+  ics:'cav-agenda-ics',
   key:''
 };
 let CFG={...CFG_DEF};
@@ -1059,6 +1085,7 @@ function rAgenda(){
     +'<button class="icon-btn" onclick="abrirNovoEvento()" title="Novo evento">＋</button>'
     +'<button class="cal-hoje" onclick="calHojeBtn()">Hoje</button>'
     +'<button class="icon-btn" onclick="calMudarMes(1)">›</button>'
+    +'<button class="icon-btn" onclick="abrirCalendario()" title="Sincronizar com o telemóvel">🔗</button>'
     +'</div>';
   h+='<div class="cal-dow">'+['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(d=>'<span>'+d+'</span>').join('')+'</div>';
   h+='<div class="cal-grid">'+cels+'</div>';
@@ -1419,6 +1446,7 @@ function closeM(id){ $(id).classList.remove('on'); }
 function openCfg(){
   $('cfgBase').value=CFG.base; $('cfgIn').value=CFG.inbound;
   $('cfgDados').value=CFG.dados; $('cfgEditar').value=CFG.editar||CFG_DEF.editar;
+  $('cfgIcs').value=CFG.ics||CFG_DEF.ics;
   $('cfgKey').value=CFG.key||'';
   openM('mCfg');
 }
@@ -1427,9 +1455,23 @@ function saveCfg(){
        inbound:$('cfgIn').value.trim()||CFG_DEF.inbound,
        dados:$('cfgDados').value.trim()||CFG_DEF.dados,
        editar:$('cfgEditar').value.trim()||CFG_DEF.editar,
+       ics:$('cfgIcs').value.trim()||CFG_DEF.ics,
        key:$('cfgKey').value.trim()};
   try{localStorage.setItem(CFG_KEY,JSON.stringify(CFG));}catch(e){}
   closeM('mCfg'); toast('Guardado','ok'); arrancar();
+}
+function abrirCalendario(){
+  if(!EU) return;
+  const https=url(CFG.ics)+'?comercial_id='+encodeURIComponent(EU.id);
+  const webcal=https.replace(/^https?:\/\//,'webcal://');
+  $('calLinkWebcal').href=webcal;
+  $('calLinkHttps').value=https;
+  openM('mCalendario');
+}
+async function copiarLinkCalendario(){
+  const v=$('calLinkHttps').value;
+  try{ await navigator.clipboard.writeText(v); toast('Link copiado','ok'); }
+  catch(e){ $('calLinkHttps').select(); toast('Selecionado — copia com Ctrl/Cmd+C'); }
 }
 
 /* ---------- 10. AUTENTICAÇÃO (escolha de comercial) ---------- */

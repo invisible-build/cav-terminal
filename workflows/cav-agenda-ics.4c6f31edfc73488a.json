@@ -1,0 +1,177 @@
+{
+  "id": "4c6f31edfc73488a",
+  "name": "CAV · Agenda (ICS)",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "cav-agenda-ics",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "b369bbe3-f969-4fff-bb0f-f931a6e00dff",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        0
+      ],
+      "webhookId": "658b01a7-4eb6-41b1-b19b-35f3333d5f40"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appIdD2RG5S0lWvfV",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblO1ODpXI5GInKGn",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "ee37b77a-b919-42a7-afce-f39fac008fae",
+      "name": "Leads",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -160,
+        0
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appIdD2RG5S0lWvfV",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl7miNQOYxtEvquL",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "cb2bfa2a-afc6-44b1-ac9d-5e088708bbc9",
+      "name": "Agenda",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        32,
+        0
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// GERAR ICS - devolve a agenda de UM comercial em formato iCalendar,\n// para subscricao no Google Calendar / Calendario da Apple (feed so de leitura).\n// Autenticacao: o comercial_id na query e a unica \"chave\" deste link - nao e\n// suposto ser adivinhavel, mas nao partilhes o URL como se fosse publico.\nconst F = r => r.fields || r;\nconst um = v => Array.isArray(v) ? (v[0] || null) : (v || null);\n\nlet query = {};\ntry { query = $('Webhook').first().json.query || {}; } catch (e) {}\nconst comercialId = (query.comercial_id || '').trim();\n\nif (!comercialId) throw new Error('Falta comercial_id na query (?comercial_id=...)');\n\nconst leads = $('Leads').all().map(i => i.json);\nconst nomeLead = {};\nfor (const r of leads) { nomeLead[r.id] = F(r).Nome || F(r).nome || 'Lead'; }\n\nconst leadsDoComercial = new Set(\n  leads.filter(r => {\n    const v = F(r).Comercial || F(r).Comerciais || F(r).comercial;\n    const ids = Array.isArray(v) ? v : (v ? [v] : []);\n    return ids.includes(comercialId);\n  }).map(r => r.id)\n);\n\nconst agenda = $('Agenda').all().map(i => i.json).filter(r => {\n  const f = F(r);\n  const leadId = um(f.Lead || f.Leads);\n  return leadId && leadsDoComercial.has(leadId) && f.estado !== 'cancelado' && f.quando;\n});\n\nconst pad = n => String(n).padStart(2, '0');\nconst aUTC = iso => {\n  const d = new Date(iso);\n  return d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate())\n    + 'T' + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + 'Z';\n};\nconst escapeTxt = s => String(s || '').replace(/\\\\/g, '\\\\\\\\').replace(/;/g, '\\\\;').replace(/,/g, '\\\\,').replace(/\\n/g, '\\\\n');\n// RFC 5545: linhas com mais de 75 octetos dobram-se com um espaco no inicio da linha seguinte.\nconst dobrar = linha => { let out = '', l = linha;\n  while (l.length > 75) { out += l.slice(0, 75) + '\\r\\n '; l = l.slice(75); }\n  return out + l;\n};\n\nconst agora = aUTC(new Date().toISOString());\nconst DURACAO_MIN = 60;\n\nconst linhas = [\n  'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CAV//Agenda//PT',\n  'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:CAV \\u2014 Agenda',\n  'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H',\n];\n\nfor (const r of agenda) {\n  const f = F(r);\n  const nome = nomeLead[um(f.Lead || f.Leads)] || 'Lead';\n  const inicio = new Date(f.quando);\n  const fim = new Date(inicio.getTime() + DURACAO_MIN * 60000);\n  linhas.push('BEGIN:VEVENT');\n  linhas.push(dobrar('UID:' + r.id + '@cav-terminal'));\n  linhas.push('DTSTAMP:' + agora);\n  linhas.push('DTSTART:' + aUTC(inicio.toISOString()));\n  linhas.push('DTEND:' + aUTC(fim.toISOString()));\n  linhas.push(dobrar('SUMMARY:' + escapeTxt((f.titulo || 'Compromisso') + ' \\u2014 ' + nome)));\n  linhas.push('STATUS:CONFIRMED');\n  linhas.push('END:VEVENT');\n}\nlinhas.push('END:VCALENDAR');\n\nreturn [{ json: { ics: linhas.join('\\r\\n') } }];"
+      },
+      "id": "c8284983-bf33-44b6-a832-ccad233231dc",
+      "name": "Gerar ICS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.ics }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/calendar; charset=utf-8"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "public, max-age=1800"
+              }
+            ]
+          }
+        }
+      },
+      "id": "6aaeeb9e-68cd-4a42-989e-a6549956a9bb",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        416,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leads": {
+      "main": [
+        [
+          {
+            "node": "Agenda",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agenda": {
+      "main": [
+        [
+          {
+            "node": "Gerar ICS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar ICS": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
