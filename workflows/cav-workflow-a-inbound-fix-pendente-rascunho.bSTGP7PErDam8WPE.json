@@ -58,7 +58,7 @@
           "conditions": [
             {
               "id": "cond-audio",
-              "leftValue": "={{ $json.has_audio }}",
+              "leftValue": "={{ $json.tem_audio }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
