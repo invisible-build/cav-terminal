@@ -213,13 +213,12 @@
                 },
                 "conditions": [
                   {
-                    "id": "995ac8c4-811a-424f-a425-00cbbe5e6066",
-                    "leftValue": "={{ $json.body.acao}}",
+                    "id": "2b406479-08e6-48c0-bd97-ea5bef2b12dc",
+                    "leftValue": "={{ $json.body.acao }}",
                     "rightValue": "atualizar_checklist",
                     "operator": {
                       "type": "string",
-                      "operation": "equals",
-                      "name": "filter.operator.equals"
+                      "operation": "equals"
                     }
                   }
                 ],
@@ -2258,7 +2257,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "id": "={{ $json.body.lead_id }}",
-            "checklist_documentos": "={{ JSON.stringify($json.body.checklist_documentos) }}"
+            "checklist_documentos": "={{  JSON.stringify($json.body.checklist_documentos)  }}"
           },
           "matchingColumns": [
             "id"
@@ -2273,6 +2272,474 @@
               "type": "string",
               "readOnly": true,
               "removed": false
+            },
+            {
+              "id": "Nome",
+              "displayName": "Nome",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "ativa",
+                  "value": "ativa"
+                },
+                {
+                  "name": "em_triagem",
+                  "value": "em_triagem"
+                },
+                {
+                  "name": "sala_de_espera",
+                  "value": "sala_de_espera"
+                },
+                {
+                  "name": "fechada",
+                  "value": "fechada"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Comercial",
+              "displayName": "Comercial",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Telefone",
+              "displayName": "Telefone",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Valor",
+              "displayName": "Valor",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "origem_lead",
+              "displayName": "origem_lead",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "estagio",
+              "displayName": "estagio",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "lead",
+                  "value": "lead"
+                },
+                {
+                  "name": "aguarda_documentos",
+                  "value": "aguarda_documentos"
+                },
+                {
+                  "name": "aguarda_decisao_banco",
+                  "value": "aguarda_decisao_banco"
+                },
+                {
+                  "name": "aprovado",
+                  "value": "aprovado"
+                },
+                {
+                  "name": "proposta_enviada",
+                  "value": "proposta_enviada"
+                },
+                {
+                  "name": "aguarda_banco",
+                  "value": "aguarda_banco"
+                },
+                {
+                  "name": "escritura_marcada",
+                  "value": "escritura_marcada"
+                },
+                {
+                  "name": "fecho",
+                  "value": "fecho"
+                },
+                {
+                  "name": "nutricao",
+                  "value": "nutricao"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "fase_origem",
+              "displayName": "fase_origem",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "leads",
+                  "value": "leads"
+                },
+                {
+                  "name": "aguarda documentos",
+                  "value": "aguarda documentos"
+                },
+                {
+                  "name": "aguarda_decisao_banco",
+                  "value": "aguarda_decisao_banco"
+                },
+                {
+                  "name": "aprovado",
+                  "value": "aprovado"
+                },
+                {
+                  "name": "proposta_enviada",
+                  "value": "proposta_enviada"
+                },
+                {
+                  "name": "aguarda_banco",
+                  "value": "aguarda_banco"
+                },
+                {
+                  "name": "escritura_marcada",
+                  "value": "escritura_marcada"
+                },
+                {
+                  "name": "fecho",
+                  "value": "fecho"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "motivo_saida",
+              "displayName": "motivo_saida",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "nao_atendeu",
+                  "value": "nao_atendeu"
+                },
+                {
+                  "name": "atendeu_mas_nao_podia_falar",
+                  "value": "atendeu_mas_nao_podia_falar"
+                },
+                {
+                  "name": "ligar_mais_tarde",
+                  "value": "ligar_mais_tarde"
+                },
+                {
+                  "name": "sem_interesse",
+                  "value": "sem_interesse"
+                },
+                {
+                  "name": "nao_encontrou_imovel",
+                  "value": "nao_encontrou_imovel"
+                },
+                {
+                  "name": "aguarda_taxas",
+                  "value": "aguarda_taxas"
+                },
+                {
+                  "name": "adiou_a_compra",
+                  "value": "adiou_a_compra"
+                },
+                {
+                  "name": "sem_perfil_de_credito",
+                  "value": "sem_perfil_de_credito"
+                },
+                {
+                  "name": "banco_recusou",
+                  "value": "banco_recusou"
+                },
+                {
+                  "name": "desistiu_depois_de_aprovado",
+                  "value": "desistiu_depois_de_aprovado"
+                },
+                {
+                  "name": "escolheu_concorrencia",
+                  "value": "escolheu_concorrencia"
+                },
+                {
+                  "name": "ja_nao_precisa_do_emprestimo",
+                  "value": "ja_nao_precisa_do_emprestimo"
+                },
+                {
+                  "name": "comprou_sem_financiamento",
+                  "value": "comprou_sem_financiamento"
+                },
+                {
+                  "name": "nao_quer_mais_saber",
+                  "value": "nao_quer_mais_saber"
+                },
+                {
+                  "name": "outro",
+                  "value": "outro"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "motivo_livre",
+              "displayName": "motivo_livre",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "desfecho_proposto",
+              "displayName": "desfecho_proposto",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "",
+                  "value": ""
+                },
+                {
+                  "name": "definitiva",
+                  "value": "definitiva"
+                },
+                {
+                  "name": "espera",
+                  "value": "espera"
+                },
+                {
+                  "name": "indefinido",
+                  "value": "indefinido"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "data_dita",
+              "displayName": "data_dita",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Eventos",
+              "displayName": "Eventos",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "tipo",
+              "displayName": "tipo",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "tansferencia",
+                  "value": "tansferencia"
+                },
+                {
+                  "name": "aquisicao",
+                  "value": "aquisicao"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "alcunha",
+              "displayName": "alcunha",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "ultima_nota",
+              "displayName": "ultima_nota",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Histórico",
+              "displayName": "Histórico",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Tarefas",
+              "displayName": "Tarefas",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Pendências",
+              "displayName": "Pendências",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Agenda",
+              "displayName": "Agenda",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "banco_origem",
+              "displayName": "banco_origem",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "cgd - caixa geral depositos",
+                  "value": "cgd - caixa geral depositos"
+                },
+                {
+                  "name": "bcp - millenium",
+                  "value": "bcp - millenium"
+                },
+                {
+                  "name": "novobanco",
+                  "value": "novobanco"
+                },
+                {
+                  "name": "santander",
+                  "value": "santander"
+                },
+                {
+                  "name": "bpi",
+                  "value": "bpi"
+                },
+                {
+                  "name": "montepio",
+                  "value": "montepio"
+                },
+                {
+                  "name": "credito_agricola",
+                  "value": "credito_agricola"
+                },
+                {
+                  "name": "bankinter",
+                  "value": "bankinter"
+                },
+                {
+                  "name": "abanca",
+                  "value": "abanca"
+                },
+                {
+                  "name": "banco_ctt",
+                  "value": "banco_ctt"
+                },
+                {
+                  "name": "uci",
+                  "value": "uci"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
             },
             {
               "id": "checklist_documentos",
@@ -2294,10 +2761,10 @@
       "type": "n8n-nodes-base.airtable",
       "typeVersion": 2.2,
       "position": [
-        352,
-        336
+        736,
+        -288
       ],
-      "id": "c009e4c7-03db-4d31-8fab-1de66dc02c9c",
+      "id": "b10be00c-8f3e-45b3-95e7-55e024528ce4",
       "name": "Atualizar Checklist",
       "credentials": {
         "airtableTokenApi": {
