@@ -84,7 +84,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// TRANSCRICAO (AUDIO) — le a resposta da chamada isolada 'Transcrever Audio (Gemini)'\n// (sem CANDIDATOS/VENDEDOR no contexto, para nao dar ao modelo nada por onde inventar).\n// Audio sem fala percetivel para aqui a execucao (sem chamar a Secretaria) — mesma logica\n// de falha fechada que o Whisper tinha antes.\nconst raw = $input.first().json || {};\nlet texto = '';\ntry { texto = (raw.candidates[0].content.parts || []).map(p => p.text || '').join(''); } catch (e) {}\ntexto = texto.trim();\nif (!texto || texto === '(sem fala percetível)') {\n  throw new Error('Audio sem fala percetivel.');\n}\nconst prep = $('Prep Input').first().json;\nreturn [{ json: { ...prep, transcricao: texto, origem_transcricao: 'gemini' } }];",
+        "jsCode": "// TRANSCRICAO (AUDIO) — le a resposta da chamada isolada 'Transcrever Audio (Gemini)'\n// (sem CANDIDATOS/VENDEDOR no contexto, para nao dar ao modelo nada por onde inventar).\nconst raw = $input.first().json || {};\nlet texto = '';\ntry { texto = (raw.candidates[0].content.parts || []).map(p => p.text || '').join(''); } catch (e) {}\ntexto = texto.trim();\nconst semFala = !texto || texto === '(sem fala percetível)';\nconst prep = $('Prep Input').first().json;\nreturn [{ json: { ...prep, transcricao: semFala ? '' : texto, sem_fala: semFala, origem_transcricao: 'gemini' } }];",
         "notice": ""
       },
       "id": "9f6fbaa8-b75f-467b-a441-20b10ef0cdd0",
@@ -877,6 +877,57 @@
           "name": "Header Auth account"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-sem-fala",
+              "leftValue": "={{ $json.sem_fala }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7c9e2b1a-4f3d-4e2a-9c1b-6a5d8e0f2b3c",
+      "name": "Áudio Tem Fala?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -5664,
+        -512
+      ]
+    },
+    {
+      "parameters": {
+        "generalNotice": "",
+        "respondWith": "json",
+        "webhookNotice": "",
+        "responseBody": "={{ JSON.stringify({ estado: 'sem_acao', mensagem: 'Não percebi fala no áudio — tenta outra vez.', transcricao: '' }) }}",
+        "options": {}
+      },
+      "id": "2d4f6a8b-1c3e-4a5b-8d7f-9e0c1b2a3d4e",
+      "name": "Responder (áudio sem fala)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -5664,
+        -320
+      ]
     }
   ],
   "connections": {
@@ -924,7 +975,7 @@
       "main": [
         [
           {
-            "node": "Já Tem Evento Pendente?",
+            "node": "Áudio Tem Fala?",
             "type": "main",
             "index": 0
           }
@@ -1213,6 +1264,24 @@
         [
           {
             "node": "Transcrição (áudio)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Áudio Tem Fala?": {
+      "main": [
+        [
+          {
+            "node": "Já Tem Evento Pendente?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder (áudio sem fala)",
             "type": "main",
             "index": 0
           }

@@ -766,7 +766,7 @@ function tratarResposta(r){
   if(estado==='pergunta'){ PEND=r; abrirSheet(r); return; }
   fecharSheet();
   if(estado==='comprometido'){ toast(r.resumo||'Registado ✓','ok'); refresh(); return; }
-  if(estado==='sem_accao'){ toast('Não havia nada para registar.'); return; }
+  if(estado==='sem_acao'){ toast(r.mensagem||'Não havia nada para registar.'); return; }
   if(estado==='rejeitado'){ toast('Descartado.'); refresh(); return; }
   toast(r.mensagem||'Feito','ok'); refresh();
 }
