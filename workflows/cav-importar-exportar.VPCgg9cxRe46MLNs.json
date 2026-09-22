@@ -168,24 +168,188 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// IMPORTAR — cria/actualiza leads e regista histórico a partir de um CSV externo.\n// Regras de segurança (CLAUDE.md: nunca apagar, decisões destrutivas ficam do lado do César):\n//  - Leads existentes (por telefone): só preenche campos que estejam VAZIOS. Nunca sobrescreve\n//    um valor já existente.\n//  - Histórico: só cria, nunca actualiza nem apaga.\n//  - dry_run:true (por omissão) calcula o plano mas não escreve nada no Airtable.\n\nconst BASE = 'appIdD2RG5S0lWvfV';\nconst TBL_LEADS = 'tblO1ODpXI5GInKGn';\nconst TBL_HIST = 'tblYNuUEylWey2Wsf';\n\nconst body = $input.first().json.body || {};\nconst comercial_id = (body.comercial_id || '').trim();\nconst linhasLeads = Array.isArray(body.leads) ? body.leads : [];\nconst linhasHist = Array.isArray(body.historico) ? body.historico : [];\nconst dryRun = body.dry_run !== false; // por omissão, dry-run\n\nif (!comercial_id) throw new Error('comercial_id em falta.');\nif (!linhasLeads.length && !linhasHist.length) throw new Error('Nada para importar (leads e historico vazios).');\n\nconst normTel = (t) => { const d = String(t || '').replace(/\\D/g, ''); return d.slice(-9); };\nconst limpo = (v) => (v === undefined || v === null) ? '' : String(v).trim();\n\nasync function airtableList(table) {\n  const registos = [];\n  let offset;\n  do {\n    const resp = await this.helpers.httpRequestWithAuthentication.call(this, 'airtableTokenApi', {\n      method: 'GET',\n      url: `https://api.airtable.com/v0/${BASE}/${table}`,\n      qs: offset ? { pageSize: 100, offset } : { pageSize: 100 },\n      json: true,\n    });\n    registos.push(...(resp.records || []));\n    offset = resp.offset;\n  } while (offset);\n  return registos;\n}\n\nasync function airtableBatch(table, method, records) {\n  const out = [];\n  for (let i = 0; i < records.length; i += 10) {\n    const lote = records.slice(i, i + 10);\n    const resp = await this.helpers.httpRequestWithAuthentication.call(this, 'airtableTokenApi', {\n      method,\n      url: `https://api.airtable.com/v0/${BASE}/${table}`,\n      body: { records: lote, typecast: true },\n      json: true,\n    });\n    out.push(...(resp.records || []));\n  }\n  return out;\n}\n\n// ---- 1. carregar leads existentes, indexar por telefone ----\nconst leadsExistentes = await airtableList.call(this, TBL_LEADS);\nconst porTelefone = new Map();\nfor (const r of leadsExistentes) {\n  const f = r.fields || {};\n  const tel = normTel(f.Telefone || f.telefone);\n  if (tel) porTelefone.set(tel, r);\n}\n\n// ---- 2. planear leads: criar vs actualizar (só campos vazios) ----\nconst MAPA_LEAD = {\n  nome: 'Nome', email: 'Email', estagio: 'estagio', status: 'Status', tipo: 'tipo',\n  origem_lead: 'origem_lead', valor: 'Valor', banco_origem: 'banco_origem', ultima_nota: 'ultima_nota',\n};\n\nconst aCriar = [];\nconst aAtualizar = [];\nconst avisos = [];\n\nfor (const linha of linhasLeads) {\n  const nome = limpo(linha.nome);\n  const tel = normTel(linha.telefone);\n  if (!nome && !tel) { avisos.push('Linha de lead sem nome nem telefone — ignorada.'); continue; }\n\n  const existente = tel ? porTelefone.get(tel) : null;\n  if (existente) {\n    const fExist = existente.fields || {};\n    const patch = {};\n    for (const [origem, destino] of Object.entries(MAPA_LEAD)) {\n      const valorNovo = limpo(linha[origem]);\n      const valorActual = fExist[destino];\n      const vazio = valorActual === undefined || valorActual === null || valorActual === '';\n      if (vazio && valorNovo) patch[destino] = origem === 'valor' ? Number(valorNovo) || valorNovo : valorNovo;\n    }\n    if (Object.keys(patch).length) aAtualizar.push({ id: existente.id, fields: patch });\n  } else {\n    if (!nome) { avisos.push(`Lead com telefone ${tel || '(sem telefone)'} sem nome — ignorada.`); continue; }\n    const fields = { Nome: nome, Comercial: [comercial_id] };\n    if (tel) fields.Telefone = linha.telefone;\n    for (const [origem, destino] of Object.entries(MAPA_LEAD)) {\n      if (origem === 'nome') continue;\n      const v = limpo(linha[origem]);\n      if (v) fields[destino] = origem === 'valor' ? Number(v) || v : v;\n    }\n    aCriar.push({ fields, _tel: tel });\n  }\n}\n\n// ---- 3. executar (ou não, em dry-run) ----\nlet criados = [];\nlet atualizados = [];\nif (!dryRun) {\n  if (aAtualizar.length) atualizados = await airtableBatch.call(this, TBL_LEADS, 'PATCH', aAtualizar);\n  if (aCriar.length) {\n    criados = await airtableBatch.call(this, TBL_LEADS, 'POST', aCriar.map(c => ({ fields: c.fields })));\n    // liga os recém-criados ao mapa de telefones, para o histórico já os poder encontrar\n    criados.forEach((r, i) => { const tel = aCriar[i]._tel; if (tel) porTelefone.set(tel, r); });\n  }\n}\n\n// ---- 4. planear histórico: só cria, nunca actualiza ----\nconst histACriar = [];\nfor (const linha of linhasHist) {\n  const tel = normTel(linha.lead_telefone);\n  const nota = limpo(linha.nota);\n  if (!nota) continue;\n  const lead = tel ? porTelefone.get(tel) : null;\n  if (!lead) { avisos.push(`Histórico \"${nota.slice(0, 40)}…\" sem lead correspondente (telefone ${tel || '?'}) — ignorado.`); continue; }\n  histACriar.push({\n    fields: {\n      Registo: 'Importado',\n      tipo_registo: 'importado',\n      nota,\n      Lead: [lead.id],\n      Data: limpo(linha.data) || new Date().toISOString().slice(0, 10),\n      ...(limpo(linha.desfecho) ? { desfecho: limpo(linha.desfecho) } : {}),\n    },\n  });\n}\n\nlet histCriado = [];\nif (!dryRun && histACriar.length) {\n  histCriado = await airtableBatch.call(this, TBL_HIST, 'POST', histACriar);\n}\n\nreturn [{\n  json: {\n    ok: true,\n    dry_run: dryRun,\n    leads_criadas: dryRun ? aCriar.length : criados.length,\n    leads_atualizadas: dryRun ? aAtualizar.length : atualizados.length,\n    historico_criado: dryRun ? histACriar.length : histCriado.length,\n    avisos,\n  },\n}];\n",
+        "jsCode": "// PREP IMPORT — normaliza o corpo do pedido.\nconst body = $input.first().json.body || $input.first().json || {};\nconst comercial_id = (body.comercial_id || '').trim();\nconst leads = Array.isArray(body.leads) ? body.leads : [];\nconst historico = Array.isArray(body.historico) ? body.historico : [];\nconst dry_run = body.dry_run !== false;\n\nif (!comercial_id) throw new Error('comercial_id em falta.');\nif (!leads.length && !historico.length) throw new Error('Nada para importar (leads e historico vazios).');\n\nreturn [{ json: { comercial_id, leads, historico, dry_run } }];\n",
         "notice": ""
       },
-      "id": "cavie000-0000-4000-8000-000000000008",
-      "name": "Importar",
+      "id": "cavie000-0000-4000-8000-00000000000b",
+      "name": "Prep Import",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -160,
         80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appIdD2RG5S0lWvfV",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblO1ODpXI5GInKGn",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "cavie000-0000-4000-8000-00000000000c",
+      "name": "Leads (existentes)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        48,
+        80
       ],
+      "executeOnce": true,
       "credentials": {
         "airtableTokenApi": {
           "id": "oThQIIbePs7HgmJD",
           "name": "Airtable Personal Access Token account"
         }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// PLANEAR — decide o que fazer a cada linha, sem escrever nada ainda.\n// Regras de segurança (CLAUDE.md: nunca apagar; decisões destrutivas ficam do lado do César):\n//  - Lead existente (por telefone): só entram no upsert os campos que estejam VAZIOS no Airtable.\n//    O telefone enviado ao upsert é sempre o valor JÁ existente, para o casamento por\n//    matchingColumns bater certo com a mesma lógica de normalização usada aqui.\n//  - Histórico: só é aceite quando há uma lead (existente ou a criar nesta importação) com\n//    o mesmo telefone — nunca se inventa uma lead nova só para pendurar histórico.\nconst prep = $('Prep Import').first().json;\nconst { comercial_id, leads: linhasLeads, historico: linhasHist, dry_run } = prep;\n\nconst normTel = (t) => String(t || '').replace(/\\D/g, '').slice(-9);\nconst limpo = (v) => (v === undefined || v === null) ? '' : String(v).trim();\n\nlet existentes = [];\ntry { existentes = $('Leads (existentes)').all().map(i => i.json); } catch (e) {}\nconst porTelefone = new Map();\nfor (const r of existentes) {\n  const f = r.fields || r;\n  const tel = normTel(f.Telefone || f.telefone);\n  if (tel) porTelefone.set(tel, { id: r.id, fields: f });\n}\n\nconst MAPA_LEAD = {\n  nome: 'Nome', email: 'Email', estagio: 'estagio', status: 'Status', tipo: 'tipo',\n  origem_lead: 'origem_lead', valor: 'Valor', banco_origem: 'banco_origem', ultima_nota: 'ultima_nota',\n};\n\nconst avisos = [];\nconst leadsParaUpsert = [];\nlet leadsNovasCount = 0;\nlet leadsAtualizarCount = 0;\nconst telefonesConhecidos = new Set(porTelefone.keys()); // existentes + os que vamos criar/tocar agora\n\nfor (const linha of linhasLeads) {\n  const nome = limpo(linha.nome);\n  const tel = normTel(linha.telefone);\n  if (!tel) { avisos.push(`Lead \"${nome || '(sem nome)'}\" sem telefone — ignorada (o import exige telefone para evitar duplicados).`); continue; }\n  if (!nome) { avisos.push(`Lead com telefone ${tel} sem nome — ignorada.`); continue; }\n\n  const existente = porTelefone.get(tel);\n  const fields = {};\n  if (existente) {\n    // casamento pelo telefone JÁ guardado no Airtable — nunca o valor em bruto do CSV.\n    fields.Telefone = existente.fields.Telefone || existente.fields.telefone;\n    for (const [origem, destino] of Object.entries(MAPA_LEAD)) {\n      if (origem === 'nome') continue; // nunca reescreve o nome de uma lead já existente\n      const valorNovo = limpo(linha[origem]);\n      const valorActual = existente.fields[destino];\n      const vazio = valorActual === undefined || valorActual === null || valorActual === '';\n      if (vazio && valorNovo) fields[destino] = destino === 'Valor' ? (Number(valorNovo) || valorNovo) : valorNovo;\n    }\n    if (!existente.fields.Comercial && !existente.fields.Comerciais) fields.Comercial = [comercial_id];\n  } else {\n    fields.Nome = nome;\n    fields.Telefone = linha.telefone;\n    fields.Comercial = [comercial_id];\n    for (const [origem, destino] of Object.entries(MAPA_LEAD)) {\n      if (origem === 'nome') continue;\n      const v = limpo(linha[origem]);\n      if (v) fields[destino] = destino === 'Valor' ? (Number(v) || v) : v;\n    }\n  }\n  leadsParaUpsert.push({ _id: existente ? existente.id : null, fields });\n  telefonesConhecidos.add(tel);\n  if (existente) { if (Object.keys(fields).length > 1) leadsAtualizarCount++; }\n  else leadsNovasCount++;\n}\n\nconst historicoPendente = [];\nfor (const linha of linhasHist) {\n  const tel = normTel(linha.lead_telefone);\n  const nota = limpo(linha.nota);\n  if (!nota) continue;\n  if (!tel || !telefonesConhecidos.has(tel)) {\n    avisos.push(`Histórico \"${nota.slice(0, 40)}…\" sem lead correspondente (telefone ${tel || '?'}) — ignorado.`);\n    continue;\n  }\n  const dataDita = limpo(linha.data);\n  historicoPendente.push({\n    _tel: tel,\n    fields: {\n      Registo: 'Importado',\n      tipo_registo: 'importado',\n      // Data é campo calculado no Airtable (não aceita escrita) — a data original\n      // do CRM de origem, quando existe, fica à cabeça da nota para não se perder.\n      nota: (dataDita ? '['+dataDita+'] ' : '') + nota,\n      ...(limpo(linha.desfecho) ? { desfecho: limpo(linha.desfecho) } : {}),\n    },\n  });\n}\n\nreturn [{ json: {\n  comercial_id, dry_run,\n  leadsParaUpsert, historicoPendente, avisos,\n  leads_novas: leadsNovasCount,\n  leads_a_atualizar: leadsAtualizarCount,\n} }];\n",
+        "notice": ""
       },
-      "onError": "continueErrorOutput"
+      "id": "cavie000-0000-4000-8000-00000000000d",
+      "name": "Planear",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-dry-run",
+              "leftValue": "={{ $json.dry_run }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cavie000-0000-4000-8000-00000000000e",
+      "name": "Dry Run?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        464,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// EXPLODIR LEADS — transforma o plano num item por lead. \"id\" no topo (fora de\n// \"fields\") é a convenção do n8n para o registo a actualizar; sem \"id\" é criação.\nconst rows = $('Planear').first().json.leadsParaUpsert || [];\nreturn rows.map(r => ({ json: r._id ? { id: r._id, ...r.fields } : { ...r.fields } }));\n",
+        "notice": ""
+      },
+      "id": "cavie000-0000-4000-8000-00000000000f",
+      "name": "Explodir Leads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        176
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// RESOLVER HISTORICO — depois de \"Juntar Leads\" (actualizadas + criadas), sabemos o\n// id real de cada telefone tocado nesta importação. Resolve o Lead de cada linha de\n// histórico já validada pelo Planear e devolve um item por linha, pronto para criar.\nconst normTel = (t) => String(t || '').replace(/\\D/g, '').slice(-9);\n\nconst porTelefone = new Map();\ntry {\n  for (const i of $('Leads (existentes)').all()) {\n    const f = i.json.fields || i.json;\n    const tel = normTel(f.Telefone || f.telefone);\n    if (tel) porTelefone.set(tel, i.json.id);\n  }\n} catch (e) {}\ntry {\n  for (const i of $('Juntar Leads').all()) {\n    const f = i.json.fields || i.json;\n    const tel = normTel(f.Telefone || f.telefone);\n    if (tel && i.json.id) porTelefone.set(tel, i.json.id);\n  }\n} catch (e) {}\n\nconst pendentes = $('Planear').first().json.historicoPendente || [];\nconst out = [];\nfor (const linha of pendentes) {\n  const leadId = porTelefone.get(linha._tel);\n  if (!leadId) continue; // já foi avisado no Planear se realmente não existe; aqui só protege contra falha na escrita das leads\n  out.push({ json: { ...linha.fields, Lead: [leadId] } });\n}\nreturn out;\n",
+        "notice": ""
+      },
+      "id": "cavie000-0000-4000-8000-000000000011",
+      "name": "Resolver Historico",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        176
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appIdD2RG5S0lWvfV",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblYNuUEylWey2Wsf",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "id": "cavie000-0000-4000-8000-000000000012",
+      "name": "Criar Historico",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1296,
+        176
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// MONTAR RESUMO — chega aqui a partir do ramo dry-run (nada escrito) ou do fim do\n// ramo real (depois de \"Criar Historico\"). Os números são sempre os do plano do\n// Planear (que decide create-vs-update de forma determinística); quando o ramo real\n// correu, confere que o upsert de facto tocou o número de leads esperado.\nconst plano = $('Planear').first().json;\nconst dry_run = plano.dry_run;\nconst avisos = [...plano.avisos];\n\nif (!dry_run) {\n  let leadsTocadas = -1;\n  try { leadsTocadas = $('Juntar Leads').all().length; } catch (e) {}\n  const esperado = plano.leadsParaUpsert.length;\n  if (leadsTocadas !== esperado) avisos.push(`Esperava tocar ${esperado} leads, o Airtable confirmou ${leadsTocadas}.`);\n}\n\nlet historicoCriado = plano.historicoPendente.length;\nif (!dry_run) {\n  try { historicoCriado = $('Criar Historico').all().length; } catch (e) { historicoCriado = 0; }\n}\n\nreturn [{ json: {\n  ok: true,\n  dry_run,\n  leads_criadas: plano.leads_novas,\n  leads_atualizadas: plano.leads_a_atualizar,\n  historico_criado: historicoCriado,\n  avisos,\n} }];\n",
+        "notice": ""
+      },
+      "id": "cavie000-0000-4000-8000-000000000013",
+      "name": "Montar Resumo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -32
+      ]
     },
     {
       "parameters": {
@@ -195,13 +359,13 @@
         "responseBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
-      "id": "cavie000-0000-4000-8000-000000000009",
+      "id": "cavie000-0000-4000-8000-000000000014",
       "name": "Responder (importar)",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
       "position": [
-        48,
-        32
+        1088,
+        -32
       ]
     },
     {
@@ -214,14 +378,146 @@
           "responseCode": 400
         }
       },
-      "id": "cavie000-0000-4000-8000-00000000000a",
+      "id": "cavie000-0000-4000-8000-000000000015",
       "name": "Responder (falha import)",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
       "position": [
-        48,
+        256,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-lead-existe",
+              "leftValue": "={{ !!$json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cavie000-0000-4000-8000-000000000016",
+      "name": "Lead Existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
         176
       ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appIdD2RG5S0lWvfV",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblO1ODpXI5GInKGn",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "id": "cavie000-0000-4000-8000-000000000017",
+      "name": "Atualizar Leads",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1088,
+        96
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appIdD2RG5S0lWvfV",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblO1ODpXI5GInKGn",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "id": "cavie000-0000-4000-8000-000000000018",
+      "name": "Criar Leads",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1088,
+        256
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "cavie000-0000-4000-8000-000000000019",
+      "name": "Juntar Leads",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1296,
+        176
+      ],
+      "alwaysOutputData": true
     }
   ],
   "connections": {
@@ -284,14 +580,98 @@
       "main": [
         [
           {
-            "node": "Importar",
+            "node": "Prep Import",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Importar": {
+    "Prep Import": {
+      "main": [
+        [
+          {
+            "node": "Leads (existentes)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leads (existentes)": {
+      "main": [
+        [
+          {
+            "node": "Planear",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Planear": {
+      "main": [
+        [
+          {
+            "node": "Dry Run?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dry Run?": {
+      "main": [
+        [
+          {
+            "node": "Montar Resumo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Explodir Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Explodir Leads": {
+      "main": [
+        [
+          {
+            "node": "Lead Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver Historico": {
+      "main": [
+        [
+          {
+            "node": "Criar Historico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Historico": {
+      "main": [
+        [
+          {
+            "node": "Montar Resumo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Resumo": {
       "main": [
         [
           {
@@ -299,10 +679,54 @@
             "type": "main",
             "index": 0
           }
+        ]
+      ]
+    },
+    "Lead Existe?": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Leads",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
           {
-            "node": "Responder (falha import)",
+            "node": "Criar Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Leads": {
+      "main": [
+        [
+          {
+            "node": "Juntar Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Leads": {
+      "main": [
+        [
+          {
+            "node": "Juntar Leads",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Juntar Leads": {
+      "main": [
+        [
+          {
+            "node": "Resolver Historico",
             "type": "main",
             "index": 0
           }
