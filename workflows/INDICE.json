@@ -82,5 +82,12 @@
     "nome": "CAV · Editar (App)",
     "activo": true,
     "nos": 11
+  },
+  {
+    "ficheiro": "cav-importar-exportar.VPCgg9cxRe46MLNs.json",
+    "id": "VPCgg9cxRe46MLNs",
+    "nome": "CAV · Importar/Exportar",
+    "activo": false,
+    "nos": 0
   }
 ]

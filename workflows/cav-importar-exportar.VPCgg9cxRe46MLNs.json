@@ -1,0 +1,313 @@
+{
+  "id": "VPCgg9cxRe46MLNs",
+  "name": "CAV · Importar/Exportar",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "cav-exportar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cavie000-0000-4000-8000-000000000001",
+      "name": "Webhook (exportar)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appIdD2RG5S0lWvfV",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblO1ODpXI5GInKGn",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "cavie000-0000-4000-8000-000000000002",
+      "name": "Leads",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -160,
+        -160
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appIdD2RG5S0lWvfV",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblzGMUkS6P9nf4YC",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "cavie000-0000-4000-8000-000000000003",
+      "name": "Comerciais",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        48,
+        -160
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appIdD2RG5S0lWvfV",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblYNuUEylWey2Wsf",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "cavie000-0000-4000-8000-000000000004",
+      "name": "Historico",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        256,
+        -160
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// MONTAR EXPORT — junta Leads + Comerciais + Historico num formato pronto a\n// converter para CSV do lado do Terminal (um comercial por id, um lead por linha).\nconst pega = nome => { try { return $(nome).all().map(i => i.json); } catch (e) { return []; } };\nconst F = r => r.fields || r;\nconst id = r => r.id || F(r).id || null;\nconst um = v => Array.isArray(v) ? (v[0] || null) : (v || null);\nconst txt = (f, ...ks) => { for (const k of ks) if (f[k] !== undefined && f[k] !== null && f[k] !== '') return f[k]; return null; };\n\nconst comerciaisPorId = {};\nfor (const r of pega('Comerciais')) {\n  const f = F(r);\n  comerciaisPorId[id(r)] = txt(f, 'Nome', 'nome') || '';\n}\n\nconst leadsPorId = {};\nconst leads = pega('Leads').map(r => {\n  const f = F(r);\n  const lid = id(r);\n  const comercialId = um(f.Comercial || f.Comerciais || f.comercial);\n  const row = {\n    id: lid,\n    nome: txt(f, 'Nome', 'nome') || '',\n    telefone: txt(f, 'Telefone', 'telefone') || '',\n    email: txt(f, 'Email', 'email') || '',\n    comercial: comerciaisPorId[comercialId] || '',\n    estagio: txt(f, 'estagio', 'Estagio', 'Estágio') || '',\n    status: txt(f, 'Status', 'status') || '',\n    tipo: txt(f, 'tipo', 'Tipo') || '',\n    origem_lead: txt(f, 'origem_lead', 'Origem') || '',\n    valor: f.Valor ?? f.valor ?? '',\n    banco_origem: txt(f, 'banco_origem') || '',\n    motivo_saida: txt(f, 'motivo_saida') || '',\n    ultima_nota: txt(f, 'ultima_nota', 'Ultima_nota') || '',\n  };\n  leadsPorId[lid] = row;\n  return row;\n}).filter(l => l.nome);\n\nconst historico = pega('Historico').map(r => {\n  const f = F(r);\n  const leadId = um(f.Lead || f.Leads);\n  const lead = leadsPorId[leadId] || {};\n  return {\n    id: id(r),\n    lead_nome: lead.nome || '',\n    lead_telefone: lead.telefone || '',\n    data: txt(f, 'Data', 'data') || '',\n    tipo_registo: txt(f, 'tipo_registo') || '',\n    desfecho: txt(f, 'desfecho') || '',\n    nota: txt(f, 'nota', 'Nota') || '',\n  };\n}).filter(h => h.nota || h.lead_nome);\n\nreturn [{ json: { ok: true, gerado_em: new Date().toISOString(), leads, historico } }];\n",
+        "notice": ""
+      },
+      "id": "cavie000-0000-4000-8000-000000000005",
+      "name": "Montar Export",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "generalNotice": "",
+        "respondWith": "json",
+        "webhookNotice": "",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "cavie000-0000-4000-8000-000000000006",
+      "name": "Responder (exportar)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        672,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cav-importar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cavie000-0000-4000-8000-000000000007",
+      "name": "Webhook (importar)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// IMPORTAR — cria/actualiza leads e regista histórico a partir de um CSV externo.\n// Regras de segurança (CLAUDE.md: nunca apagar, decisões destrutivas ficam do lado do César):\n//  - Leads existentes (por telefone): só preenche campos que estejam VAZIOS. Nunca sobrescreve\n//    um valor já existente.\n//  - Histórico: só cria, nunca actualiza nem apaga.\n//  - dry_run:true (por omissão) calcula o plano mas não escreve nada no Airtable.\n\nconst BASE = 'appIdD2RG5S0lWvfV';\nconst TBL_LEADS = 'tblO1ODpXI5GInKGn';\nconst TBL_HIST = 'tblYNuUEylWey2Wsf';\n\nconst body = $input.first().json.body || {};\nconst comercial_id = (body.comercial_id || '').trim();\nconst linhasLeads = Array.isArray(body.leads) ? body.leads : [];\nconst linhasHist = Array.isArray(body.historico) ? body.historico : [];\nconst dryRun = body.dry_run !== false; // por omissão, dry-run\n\nif (!comercial_id) throw new Error('comercial_id em falta.');\nif (!linhasLeads.length && !linhasHist.length) throw new Error('Nada para importar (leads e historico vazios).');\n\nconst normTel = (t) => { const d = String(t || '').replace(/\\D/g, ''); return d.slice(-9); };\nconst limpo = (v) => (v === undefined || v === null) ? '' : String(v).trim();\n\nasync function airtableList(table) {\n  const registos = [];\n  let offset;\n  do {\n    const resp = await this.helpers.httpRequestWithAuthentication.call(this, 'airtableTokenApi', {\n      method: 'GET',\n      url: `https://api.airtable.com/v0/${BASE}/${table}`,\n      qs: offset ? { pageSize: 100, offset } : { pageSize: 100 },\n      json: true,\n    });\n    registos.push(...(resp.records || []));\n    offset = resp.offset;\n  } while (offset);\n  return registos;\n}\n\nasync function airtableBatch(table, method, records) {\n  const out = [];\n  for (let i = 0; i < records.length; i += 10) {\n    const lote = records.slice(i, i + 10);\n    const resp = await this.helpers.httpRequestWithAuthentication.call(this, 'airtableTokenApi', {\n      method,\n      url: `https://api.airtable.com/v0/${BASE}/${table}`,\n      body: { records: lote, typecast: true },\n      json: true,\n    });\n    out.push(...(resp.records || []));\n  }\n  return out;\n}\n\n// ---- 1. carregar leads existentes, indexar por telefone ----\nconst leadsExistentes = await airtableList.call(this, TBL_LEADS);\nconst porTelefone = new Map();\nfor (const r of leadsExistentes) {\n  const f = r.fields || {};\n  const tel = normTel(f.Telefone || f.telefone);\n  if (tel) porTelefone.set(tel, r);\n}\n\n// ---- 2. planear leads: criar vs actualizar (só campos vazios) ----\nconst MAPA_LEAD = {\n  nome: 'Nome', email: 'Email', estagio: 'estagio', status: 'Status', tipo: 'tipo',\n  origem_lead: 'origem_lead', valor: 'Valor', banco_origem: 'banco_origem', ultima_nota: 'ultima_nota',\n};\n\nconst aCriar = [];\nconst aAtualizar = [];\nconst avisos = [];\n\nfor (const linha of linhasLeads) {\n  const nome = limpo(linha.nome);\n  const tel = normTel(linha.telefone);\n  if (!nome && !tel) { avisos.push('Linha de lead sem nome nem telefone — ignorada.'); continue; }\n\n  const existente = tel ? porTelefone.get(tel) : null;\n  if (existente) {\n    const fExist = existente.fields || {};\n    const patch = {};\n    for (const [origem, destino] of Object.entries(MAPA_LEAD)) {\n      const valorNovo = limpo(linha[origem]);\n      const valorActual = fExist[destino];\n      const vazio = valorActual === undefined || valorActual === null || valorActual === '';\n      if (vazio && valorNovo) patch[destino] = origem === 'valor' ? Number(valorNovo) || valorNovo : valorNovo;\n    }\n    if (Object.keys(patch).length) aAtualizar.push({ id: existente.id, fields: patch });\n  } else {\n    if (!nome) { avisos.push(`Lead com telefone ${tel || '(sem telefone)'} sem nome — ignorada.`); continue; }\n    const fields = { Nome: nome, Comercial: [comercial_id] };\n    if (tel) fields.Telefone = linha.telefone;\n    for (const [origem, destino] of Object.entries(MAPA_LEAD)) {\n      if (origem === 'nome') continue;\n      const v = limpo(linha[origem]);\n      if (v) fields[destino] = origem === 'valor' ? Number(v) || v : v;\n    }\n    aCriar.push({ fields, _tel: tel });\n  }\n}\n\n// ---- 3. executar (ou não, em dry-run) ----\nlet criados = [];\nlet atualizados = [];\nif (!dryRun) {\n  if (aAtualizar.length) atualizados = await airtableBatch.call(this, TBL_LEADS, 'PATCH', aAtualizar);\n  if (aCriar.length) {\n    criados = await airtableBatch.call(this, TBL_LEADS, 'POST', aCriar.map(c => ({ fields: c.fields })));\n    // liga os recém-criados ao mapa de telefones, para o histórico já os poder encontrar\n    criados.forEach((r, i) => { const tel = aCriar[i]._tel; if (tel) porTelefone.set(tel, r); });\n  }\n}\n\n// ---- 4. planear histórico: só cria, nunca actualiza ----\nconst histACriar = [];\nfor (const linha of linhasHist) {\n  const tel = normTel(linha.lead_telefone);\n  const nota = limpo(linha.nota);\n  if (!nota) continue;\n  const lead = tel ? porTelefone.get(tel) : null;\n  if (!lead) { avisos.push(`Histórico \"${nota.slice(0, 40)}…\" sem lead correspondente (telefone ${tel || '?'}) — ignorado.`); continue; }\n  histACriar.push({\n    fields: {\n      Registo: 'Importado',\n      tipo_registo: 'importado',\n      nota,\n      Lead: [lead.id],\n      Data: limpo(linha.data) || new Date().toISOString().slice(0, 10),\n      ...(limpo(linha.desfecho) ? { desfecho: limpo(linha.desfecho) } : {}),\n    },\n  });\n}\n\nlet histCriado = [];\nif (!dryRun && histACriar.length) {\n  histCriado = await airtableBatch.call(this, TBL_HIST, 'POST', histACriar);\n}\n\nreturn [{\n  json: {\n    ok: true,\n    dry_run: dryRun,\n    leads_criadas: dryRun ? aCriar.length : criados.length,\n    leads_atualizadas: dryRun ? aAtualizar.length : atualizados.length,\n    historico_criado: dryRun ? histACriar.length : histCriado.length,\n    avisos,\n  },\n}];\n",
+        "notice": ""
+      },
+      "id": "cavie000-0000-4000-8000-000000000008",
+      "name": "Importar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        80
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "generalNotice": "",
+        "respondWith": "json",
+        "webhookNotice": "",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "cavie000-0000-4000-8000-000000000009",
+      "name": "Responder (importar)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        48,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "generalNotice": "",
+        "respondWith": "json",
+        "webhookNotice": "",
+        "responseBody": "={{ JSON.stringify({ ok: false, erro: $json.error ? ($json.error.message || String($json.error)) : 'Falha ao importar.' }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "cavie000-0000-4000-8000-00000000000a",
+      "name": "Responder (falha import)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        48,
+        176
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook (exportar)": {
+      "main": [
+        [
+          {
+            "node": "Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leads": {
+      "main": [
+        [
+          {
+            "node": "Comerciais",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comerciais": {
+      "main": [
+        [
+          {
+            "node": "Historico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Historico": {
+      "main": [
+        [
+          {
+            "node": "Montar Export",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Export": {
+      "main": [
+        [
+          {
+            "node": "Responder (exportar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook (importar)": {
+      "main": [
+        [
+          {
+            "node": "Importar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Importar": {
+      "main": [
+        [
+          {
+            "node": "Responder (importar)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder (falha import)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

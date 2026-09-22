@@ -404,6 +404,14 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
       <div class="help">Usado pelo link de sincronização com o Google Calendar / Calendário da Apple (na aba Agenda).</div>
     </div>
     <div class="fld">
+      <label>Caminho — exportar dados</label>
+      <input id="cfgExportar" placeholder="cav-exportar">
+    </div>
+    <div class="fld">
+      <label>Caminho — importar dados</label>
+      <input id="cfgImportar" placeholder="cav-importar">
+    </div>
+    <div class="fld">
       <label>Chave da app (opcional)</label>
       <input id="cfgKey" placeholder="deixa vazio se não usares">
       <div class="help">Enviada no cabeçalho <span style="font-family:var(--mono)">x-cav-key</span>. Serve para o n8n recusar pedidos de fora.</div>
@@ -411,6 +419,38 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
     <div class="m-act">
       <button class="cancel" onclick="closeM('mCfg')">Fechar</button>
       <button class="ok" onclick="saveCfg()">Guardar</button>
+    </div>
+    <button class="opt" style="margin-top:14px;text-align:center" onclick="closeM('mCfg');abrirImportExport()">⇅ Importar / exportar dados</button>
+  </div>
+</div>
+
+<!-- ====================== MODAL IMPORTAR / EXPORTAR ====================== -->
+<div class="modal" id="mImportExport">
+  <div class="modal-in">
+    <h3>Importar / exportar dados</h3>
+
+    <div class="fld">
+      <label>Exportar</label>
+      <div class="help">Descarrega dois ficheiros CSV: as leads e o histórico de cada uma. Serve para backup ou para levar para outro CRM.</div>
+      <button class="opt" style="margin-top:8px;text-align:center" onclick="exportarDados()">⬇ Descarregar CSV</button>
+    </div>
+
+    <div class="fld" style="margin-top:18px">
+      <label>Importar — ficheiro de leads (CSV)</label>
+      <div class="help">Cabeçalho esperado: nome, telefone, email, estagio, status, tipo, origem_lead, valor, banco_origem, ultima_nota — o mesmo do ficheiro exportado. Leads existentes (por telefone) só têm os campos vazios preenchidos; nunca substitui o que já lá está.</div>
+      <input type="file" id="impLeadsFile" accept=".csv" style="margin-top:8px">
+    </div>
+    <div class="fld">
+      <label>Importar — ficheiro de histórico (CSV, opcional)</label>
+      <div class="help">Cabeçalho esperado: lead_telefone, data, nota, tipo_registo, desfecho. Cada linha tem de ter um telefone que bata certo com uma lead (nova ou já existente).</div>
+      <input type="file" id="impHistFile" accept=".csv" style="margin-top:8px">
+    </div>
+
+    <div id="impResumo" style="display:none;margin-top:14px;padding:12px;background:var(--s2);border-radius:10px;font-size:13px;line-height:1.6"></div>
+
+    <div class="m-act">
+      <button class="cancel" onclick="closeM('mImportExport')">Fechar</button>
+      <button class="ok" id="impBtnPreview" onclick="importarPreview()">Pré-visualizar</button>
     </div>
   </div>
 </div>
@@ -522,6 +562,8 @@ const CFG_DEF={
   dados:'cav-dados',
   editar:'cav-editar',
   ics:'cav-agenda-ics',
+  exportar:'cav-exportar',
+  importar:'cav-importar',
   key:''
 };
 let CFG={...CFG_DEF};
@@ -614,6 +656,19 @@ async function apiEditar(payload){
   const txt=await r.text();
   let j=null; try{ j=JSON.parse(txt); }catch(e){}
   if(!r.ok||(j&&j.ok===false)) throw new Error((j&&(j.message||j.erro))||('Erro '+r.status+': '+txt.slice(0,140)));
+  return j||{};
+}
+async function apiExportar(){
+  const r=await fetch(url(CFG.exportar));
+  if(!r.ok) throw new Error('Exportação falhou ('+r.status+')');
+  return await r.json();
+}
+async function apiImportar(payload){
+  const r=await fetch(url(CFG.importar),{method:'POST',headers:headers(),
+    body:JSON.stringify({comercial_id:EU?EU.id:null, ...payload})});
+  const txt=await r.text();
+  let j=null; try{ j=JSON.parse(txt); }catch(e){}
+  if(!r.ok||(j&&j.ok===false)) throw new Error((j&&(j.erro||j.message))||('Erro '+r.status+': '+txt.slice(0,140)));
   return j||{};
 }
 
@@ -1447,6 +1502,8 @@ function openCfg(){
   $('cfgBase').value=CFG.base; $('cfgIn').value=CFG.inbound;
   $('cfgDados').value=CFG.dados; $('cfgEditar').value=CFG.editar||CFG_DEF.editar;
   $('cfgIcs').value=CFG.ics||CFG_DEF.ics;
+  $('cfgExportar').value=CFG.exportar||CFG_DEF.exportar;
+  $('cfgImportar').value=CFG.importar||CFG_DEF.importar;
   $('cfgKey').value=CFG.key||'';
   openM('mCfg');
 }
@@ -1456,6 +1513,8 @@ function saveCfg(){
        dados:$('cfgDados').value.trim()||CFG_DEF.dados,
        editar:$('cfgEditar').value.trim()||CFG_DEF.editar,
        ics:$('cfgIcs').value.trim()||CFG_DEF.ics,
+       exportar:$('cfgExportar').value.trim()||CFG_DEF.exportar,
+       importar:$('cfgImportar').value.trim()||CFG_DEF.importar,
        key:$('cfgKey').value.trim()};
   try{localStorage.setItem(CFG_KEY,JSON.stringify(CFG));}catch(e){}
   closeM('mCfg'); toast('Guardado','ok'); arrancar();
@@ -1472,6 +1531,116 @@ async function copiarLinkCalendario(){
   const v=$('calLinkHttps').value;
   try{ await navigator.clipboard.writeText(v); toast('Link copiado','ok'); }
   catch(e){ $('calLinkHttps').select(); toast('Selecionado — copia com Ctrl/Cmd+C'); }
+}
+
+/* ---------- 9b. IMPORTAR / EXPORTAR ---------- */
+function csvEsc(v){
+  const s=v===null||v===undefined?'':String(v);
+  return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+function paraCSV(linhas,colunas){
+  const cab=colunas.join(',');
+  const corpo=linhas.map(l=>colunas.map(c=>csvEsc(l[c])).join(','));
+  return [cab,...corpo].join('\r\n');
+}
+function baixarFicheiro(nome,conteudo){
+  const blob=new Blob(['﻿'+conteudo],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+// Parser CSV simples (RFC4180): aspas para escapar vírgulas/quebras de linha, "" para aspas literais.
+function parseCSV(texto){
+  const linhas=[]; let linha=[]; let campo=''; let dentroAspas=false;
+  const t=texto.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  for(let i=0;i<t.length;i++){
+    const c=t[i];
+    if(dentroAspas){
+      if(c==='"'){ if(t[i+1]==='"'){ campo+='"'; i++; } else dentroAspas=false; }
+      else campo+=c;
+    }else{
+      if(c==='"') dentroAspas=true;
+      else if(c===','){ linha.push(campo); campo=''; }
+      else if(c==='\n'){ linha.push(campo); linhas.push(linha); linha=[]; campo=''; }
+      else campo+=c;
+    }
+  }
+  if(campo!==''||linha.length){ linha.push(campo); linhas.push(linha); }
+  if(!linhas.length) return [];
+  const cab=linhas[0].map(h=>h.trim().toLowerCase());
+  return linhas.slice(1).filter(l=>l.some(v=>v.trim()!=='')).map(l=>{
+    const o={}; cab.forEach((h,i)=>o[h]=(l[i]||'').trim()); return o;
+  });
+}
+function lerFicheiro(input){
+  return new Promise((res,rej)=>{
+    const f=input.files&&input.files[0];
+    if(!f){ res(''); return; }
+    const fr=new FileReader();
+    fr.onload=()=>res(String(fr.result||''));
+    fr.onerror=()=>rej(new Error('Não consegui ler o ficheiro.'));
+    fr.readAsText(f,'utf-8');
+  });
+}
+
+function abrirImportExport(){
+  $('impResumo').style.display='none'; $('impResumo').innerHTML='';
+  $('impLeadsFile').value=''; $('impHistFile').value='';
+  IMP_DADOS=null;
+  $('impBtnPreview').textContent='Pré-visualizar'; $('impBtnPreview').onclick=importarPreview;
+  openM('mImportExport');
+}
+
+async function exportarDados(){
+  try{
+    toast('A exportar…');
+    const d=await apiExportar();
+    const hoje=isoLocal(new Date());
+    baixarFicheiro('cav-leads-'+hoje+'.csv', paraCSV(d.leads||[],
+      ['id','nome','telefone','email','comercial','estagio','status','tipo','origem_lead','valor','banco_origem','motivo_saida','ultima_nota']));
+    baixarFicheiro('cav-historico-'+hoje+'.csv', paraCSV(d.historico||[],
+      ['lead_nome','lead_telefone','data','tipo_registo','desfecho','nota']));
+    toast('Exportado — '+( (d.leads||[]).length )+' leads, '+((d.historico||[]).length)+' registos de histórico','ok');
+  }catch(e){ toast(e.message,'err'); }
+}
+
+let IMP_DADOS=null;
+function resumoImport(r){
+  const linhas=[
+    (r.dry_run?'Pré-visualização — nada foi gravado ainda.':'Importado.'),
+    '• Leads novas: '+r.leads_criadas,
+    '• Leads actualizadas (só campos em branco): '+r.leads_atualizadas,
+    '• Registos de histórico criados: '+r.historico_criado,
+  ];
+  if(r.avisos&&r.avisos.length) linhas.push('', 'Avisos:', ...r.avisos.map(a=>'• '+a));
+  $('impResumo').style.display='block';
+  $('impResumo').innerHTML=linhas.map(l=>esc(l)).join('<br>');
+}
+async function importarPreview(){
+  try{
+    const leadsTexto=await lerFicheiro($('impLeadsFile'));
+    const histTexto=await lerFicheiro($('impHistFile'));
+    const leads=leadsTexto?parseCSV(leadsTexto):[];
+    const historico=histTexto?parseCSV(histTexto):[];
+    if(!leads.length&&!historico.length){ toast('Escolhe pelo menos o ficheiro de leads.'); return; }
+    IMP_DADOS={leads,historico};
+    toast('A calcular…');
+    const r=await apiImportar({leads,historico,dry_run:true});
+    resumoImport(r);
+    $('impBtnPreview').textContent='Confirmar importação';
+    $('impBtnPreview').onclick=importarConfirmar;
+  }catch(e){ toast(e.message,'err'); }
+}
+async function importarConfirmar(){
+  if(!IMP_DADOS){ toast('Pré-visualiza primeiro.'); return; }
+  try{
+    toast('A importar…');
+    const r=await apiImportar({...IMP_DADOS,dry_run:false});
+    resumoImport(r);
+    $('impBtnPreview').textContent='Importado ✓'; $('impBtnPreview').onclick=null;
+    toast('Importação concluída','ok'); refresh();
+  }catch(e){ toast(e.message,'err'); }
 }
 
 /* ---------- 10. AUTENTICAÇÃO (escolha de comercial) ---------- */
