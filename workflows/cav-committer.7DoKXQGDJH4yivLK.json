@@ -555,7 +555,9 @@
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
-        "options": {}
+        "options": {
+          "typecast": true
+        }
       },
       "type": "n8n-nodes-base.airtable",
       "typeVersion": 2.2,
@@ -1020,7 +1022,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Este no recebe as varias ramificacoes do Switch, por isso corre uma vez por\n// evento. Como calcula sempre a partir do array completo de eventos do trigger,\n// as corridas seguintes dao exactamente o mesmo resultado e so repetiam o PATCH\n// no Airtable (~0,5s cada). Uma escrita por commit chega.\nif ($runIndex > 0) return [];\n\n// Calcular update da Lead — ver §6.5 da ESPECIFICAÇÃO\nconst eventos = $('Execute Workflow Trigger').first().json.eventos || [];\nlet leadIdFromCreate = null;\ntry { leadIdFromCreate = $('Criar LEAD (nova)').first().json.id; } catch (e) {}\nconst leadId = $('Execute Workflow Trigger').first().json._contexto_n8n.lead_id || leadIdFromCreate;\n\n// ultima_nota = nota_ficheiro do último evento de categoria 'nota'\nconst notas = eventos.filter(e => e.categoria === 'nota');\nconst ultimaNota = notas.length ? notas[notas.length - 1].nota_ficheiro : undefined;\n\n// mudança de estágio (se existir)\nconst mudancas = eventos.filter(e => e.tipo === 'mudanca_estagio');\nconst mudanca = mudancas.length ? mudancas[mudancas.length - 1] : null;\n\nconst fields = { id: leadId };\n\nif (ultimaNota !== undefined && ultimaNota !== null) {\n  fields.ultima_nota = ultimaNota;\n}\n\nif (mudanca) {\n  const subtipo = mudanca.dados ? mudanca.dados.subtipo : undefined;\n  if (subtipo === 'nutricao') {\n    fields.estagio = 'nutricao';\n    fields.fase_origem = mudanca.dados.fase_origem;\n    fields.motivo_saida = mudanca.dados.motivo;\n    fields.motivo_livre = mudanca.dados.motivo_livre;\n    fields.desfecho_proposto = mudanca.dados.desfecho_proposto;\n    fields.data_dita = mudanca.dados.data_dita;\n    fields.Status = 'em_triagem';\n  } else {\n    // avanço / recuo\n    fields.estagio = mudanca.dados.estagio_destino;\n  }\n} else {\n  fields.Status = 'ativa';\n}\n\nreturn [{ json: fields }];\n"
+        "jsCode": "// Este no recebe as varias ramificacoes do Switch, por isso corre uma vez por\n// evento. Como calcula sempre a partir do array completo de eventos do trigger,\n// as corridas seguintes dao exactamente o mesmo resultado e so repetiam o PATCH\n// no Airtable (~0,5s cada). Uma escrita por commit chega.\nif ($runIndex > 0) return [];\n\n// Calcular update da Lead — ver §6.5 da ESPECIFICAÇÃO\nconst eventos = $('Execute Workflow Trigger').first().json.eventos || [];\nlet leadIdFromCreate = null;\ntry { leadIdFromCreate = $('Criar LEAD (nova)').first().json.id; } catch (e) {}\nconst leadId = $('Execute Workflow Trigger').first().json._contexto_n8n.lead_id || leadIdFromCreate;\n\n// ultima_nota = nota_ficheiro do último evento de categoria 'nota'\nconst notas = eventos.filter(e => e.categoria === 'nota');\nconst ultimaNota = notas.length ? notas[notas.length - 1].nota_ficheiro : undefined;\n\n// mudança de estágio (se existir)\nconst mudancas = eventos.filter(e => e.tipo === 'mudanca_estagio');\nconst mudanca = mudancas.length ? mudancas[mudancas.length - 1] : null;\n\nconst fields = { id: leadId };\n\nif (ultimaNota !== undefined && ultimaNota !== null) {\n  fields.ultima_nota = ultimaNota;\n}\n\nif (mudanca) {\n  const subtipo = mudanca.dados ? mudanca.dados.subtipo : undefined;\n  if (subtipo === 'nutricao') {\n    fields.estagio = 'nutricao';\n    fields.fase_origem = mudanca.dados.fase_origem;\n    fields.motivo_saida = mudanca.dados.motivo;\n    fields.motivo_livre = mudanca.dados.motivo_livre;\n    fields.desfecho_proposto = mudanca.dados.desfecho_proposto;\n    fields.data_dita = mudanca.dados.data_dita;\n    fields.Status = 'em_triagem';\n  } else {\n    // avanço / recuo\n    fields.estagio = mudanca.dados.estagio_destino;\n  }\n} else {\n  fields.Status = 'ativa';\n}\n\n// banco_proposta (§4.10 do prompt) — merge, nunca overwrite cego: le o que ja\n// estava (Get Lead Atual, antes do Split eventos) e so mexe no(s) banco(s)\n// que este commit mencionou.\nconst bancoEventos = eventos.filter(e => e.tipo === 'banco_proposta' && e.dados && e.dados.banco && e.dados.estado_proposta);\nif (bancoEventos.length) {\n  let atual = [];\n  try {\n    const leadAtual = $('Get Lead Atual').first().json;\n    const fAtual = leadAtual.fields || leadAtual;\n    const raw = fAtual.propostas_banco;\n    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;\n    if (Array.isArray(parsed)) atual = parsed;\n  } catch (e) {}\n  const porNome = new Map(atual.map(p => [String(p.banco || '').toLowerCase(), { ...p }]));\n  for (const ev of bancoEventos) {\n    porNome.set(ev.dados.banco.toLowerCase(), { banco: ev.dados.banco, estado: ev.dados.estado_proposta });\n  }\n  fields.propostas_banco = JSON.stringify(Array.from(porNome.values()));\n}\n\nreturn [{ json: fields }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2100,6 +2102,38 @@
       ],
       "id": "d2cf6659-083e-447a-b417-209610f1e203",
       "name": "Aplicar Lead Novo"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "base": {
+          "__rl": true,
+          "value": "appIdD2RG5S0lWvfV",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblO1ODpXI5GInKGn",
+          "mode": "id"
+        },
+        "id": "={{ $('Execute Workflow Trigger').first().json._contexto_n8n.lead_id || (function(){ try { return $('Criar LEAD (nova)').first().json.id; } catch (e) { return null; } })() }}",
+        "options": {}
+      },
+      "id": "cavcom00-0000-4000-8000-000000000001",
+      "name": "Get Lead Atual",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        640,
+        400
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
     }
   ],
   "connections": {
@@ -2255,6 +2289,11 @@
             "node": "Split eventos",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Get Lead Atual",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -2288,8 +2327,19 @@
             "node": "Split eventos",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Get Lead Atual",
+            "type": "main",
+            "index": 0
           }
         ]
+      ]
+    },
+    "Get Lead Atual": {
+      "main": [
+        [],
+        []
       ]
     }
   }
