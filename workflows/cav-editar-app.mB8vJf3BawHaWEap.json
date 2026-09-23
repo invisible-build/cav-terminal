@@ -226,6 +226,30 @@
               },
               "renameOutput": true,
               "outputKey": "atualizar_checklist"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f1a2b3c4-0000-4000-8000-000000000001",
+                    "leftValue": "={{ $json.body.acao }}",
+                    "rightValue": "atualizar_propostas_banco",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "atualizar_propostas_banco"
             }
           ]
         },
@@ -2772,6 +2796,71 @@
           "name": "Airtable Personal Access Token account"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appIdD2RG5S0lWvfV",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblO1ODpXI5GInKGn",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.body.lead_id }}",
+            "propostas_banco": "={{ JSON.stringify($json.body.propostas_banco) }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "propostas_banco",
+              "displayName": "propostas_banco",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        736,
+        -168
+      ],
+      "id": "f1a2b3c4-0000-4000-8000-000000000002",
+      "name": "Atualizar Propostas Banco",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
     }
   ],
   "connections": {
@@ -2840,6 +2929,13 @@
         [
           {
             "node": "Atualizar Checklist",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Atualizar Propostas Banco",
             "type": "main",
             "index": 0
           }
@@ -2935,6 +3031,17 @@
       ]
     },
     "Atualizar Checklist": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Propostas Banco": {
       "main": [
         [
           {

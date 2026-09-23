@@ -634,6 +634,14 @@ const checklistDe=l=>(Array.isArray(l.checklist_documentos)&&l.checklist_documen
   ? l.checklist_documentos
   : CHECKLIST_TEMPLATE.map(t=>({...t,estado:'pendente'}));
 
+/* Bancos a que se pode pedir proposta (fase aguarda_decisao_banco). Uma lead pode
+   ter várias entradas — o mesmo banco não se repete, mas pode haver vários bancos
+   em simultâneo, cada um com o seu estado. */
+const LISTA_BANCOS=['CGD','BCP / Millennium','Novo Banco','Santander','BPI','Montepio',
+  'Crédito Agrícola','Bankinter','Abanca','Banco CTT','UCI'];
+const NOME_ESTADO_BANCO={pedido:'Pedido',aprovado:'Aprovado',recusado:'Recusado'};
+const propostasBancoDe=l=>Array.isArray(l.propostas_banco)?l.propostas_banco:[];
+
 /* ---------- 4. API ---------- */
 async function apiDados(){
   const r=await fetch(url(CFG.dados),{method:'POST',headers:headers(),
@@ -1347,6 +1355,7 @@ function abrirLead(id){
     +'<button class="opt yes" style="margin-top:9px;text-align:center" onclick="guardarLead(\''+id+'\')">💾 Guardar alterações</button>'
     +'<datalist id="dlOrigens"><option value="Facebook Ads"><option value="Instagram"><option value="Google Ads"><option value="Site"><option value="Referência"><option value="Feira"><option value="Chamada fria"><option value="WhatsApp"></datalist>';
   if(l.estagio==='aguarda_documentos') h+=cardChecklist(id,l);
+  if(l.estagio==='aguarda_decisao_banco'||propostasBancoDe(l).length) h+=cardPropostasBanco(id,l);
   h+='<div class="card" style="margin-top:9px">'
     +'<div class="fld" style="margin-bottom:8px"><label>Adicionar anotação</label><textarea id="edNota" rows="3" placeholder="Escreve uma nota sobre esta lead…"></textarea></div>'
     +'<button class="opt yes" style="text-align:center" onclick="guardarNota(\''+id+'\')">＋ Adicionar ao histórico</button>'
@@ -1493,6 +1502,58 @@ async function toggleChecklistItem(id,idx){
     if(LEAD_ABERTA===id) abrirLead(id);
   }catch(e){ toast(e.message,'err'); }
   finally{ OCUPADO=false; }
+}
+function cardPropostasBanco(id,l){
+  const pb=propostasBancoDe(l);
+  let h='<div class="card" style="margin-top:9px">'
+    +'<div class="fld" style="margin-bottom:6px"><label>Propostas de banco'+(pb.length?' ('+pb.length+')':'')+'</label></div>';
+  h+=pb.map((p,idx)=>
+    '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12.5px">'
+      +'<span style="flex:1">'+esc(p.banco)+'</span>'
+      +'<select onchange="mudarEstadoBanco(\''+id+'\','+idx+',this.value)" style="width:auto;font-size:12px;padding:4px 6px">'
+      +Object.keys(NOME_ESTADO_BANCO).map(e=>'<option value="'+e+'"'+(p.estado===e?' selected':'')+'>'+esc(NOME_ESTADO_BANCO[e])+'</option>').join('')
+      +'</select>'
+      +'<button onclick="removerBanco(\''+id+'\','+idx+')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 4px" title="Remover">✕</button>'
+    +'</div>'
+  ).join('');
+  h+='<div style="display:flex;gap:6px;margin-top:8px">'
+    +'<input id="pbNovo-'+id+'" list="dlBancos" placeholder="Nome do banco" style="flex:1">'
+    +'<button class="opt" style="width:auto;padding:0 14px" onclick="adicionarBanco(\''+id+'\')">＋</button>'
+    +'</div>'
+    +'<datalist id="dlBancos">'+LISTA_BANCOS.map(b=>'<option value="'+esc(b)+'">').join('')+'</datalist>';
+  return h+'</div>';
+}
+async function guardarPropostasBanco(id,novaLista){
+  if(OCUPADO) return;
+  OCUPADO=true;
+  try{
+    await apiEditar({acao:'atualizar_propostas_banco',lead_id:id,propostas_banco:novaLista});
+    const l=leadDe(id); if(l) l.propostas_banco=novaLista;
+    if(LEAD_ABERTA===id) abrirLead(id);
+  }catch(e){ toast(e.message,'err'); }
+  finally{ OCUPADO=false; }
+}
+function adicionarBanco(id){
+  if(OCUPADO) return;
+  const l=leadDe(id); if(!l) return;
+  const input=$('pbNovo-'+id);
+  const nome=(input?input.value:'').trim();
+  if(!nome){ toast('Escreve o nome do banco.'); return; }
+  const pb=propostasBancoDe(l);
+  if(pb.some(p=>p.banco.toLowerCase()===nome.toLowerCase())){ toast('Esse banco já está na lista.'); return; }
+  guardarPropostasBanco(id,[...pb,{banco:nome,estado:'pedido'}]);
+}
+function mudarEstadoBanco(id,idx,estado){
+  const l=leadDe(id); if(!l) return;
+  const pb=propostasBancoDe(l).map(p=>({...p}));
+  if(!pb[idx]) return;
+  pb[idx].estado=estado;
+  guardarPropostasBanco(id,pb);
+}
+function removerBanco(id,idx){
+  const l=leadDe(id); if(!l) return;
+  const pb=propostasBancoDe(l).filter((_,i)=>i!==idx);
+  guardarPropostasBanco(id,pb);
 }
 
 /* ---------- 9. DEFINIÇÕES ---------- */
