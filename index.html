@@ -361,6 +361,13 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
   <div class="said" id="shSaid"></div>
   <div class="ev-list" id="shEvs"></div>
   <div class="opts" id="shOpts"></div>
+  <div id="shCorrigir" style="display:none;margin-top:10px">
+    <textarea id="shCorrigirTxt" rows="2" placeholder="O que estava errado? (ex.: era outra lead, a data não é essa…)" style="width:100%"></textarea>
+    <div class="opts" style="margin-top:8px">
+      <button class="opt" onclick="cancelarCorrecao()">Voltar</button>
+      <button class="opt yes" onclick="enviarCorrecao()">Enviar</button>
+    </div>
+  </div>
 </div>
 
 <!-- ====================== PAINEL LEAD ====================== -->
@@ -846,11 +853,36 @@ function abrirSheet(r){
   let opts=Array.isArray(r.opcoes)&&r.opcoes.length?r.opcoes:[{valor:'sim',etiqueta:'Sim, é isso'},{valor:'nao',etiqueta:'Não'}];
   $('shOpts').innerHTML=opts.map((o,i)=>{
     const v=esc(o.valor), cls=(o.valor==='sim'||i===0)?'opt yes':(o.valor==='nao'?'opt no':'opt');
-    return '<button class="'+cls+'" onclick="responder(\''+v.replace(/'/g,"\\'")+'\')">'+esc(o.etiqueta||o.valor)+'</button>';
+    const acao=o.valor==='nao'?'prepararCorrecao()':('responder(\''+v.replace(/'/g,"\\'")+'\')');
+    return '<button class="'+cls+'" onclick="'+acao+'">'+esc(o.etiqueta||o.valor)+'</button>';
   }).join('')+'<button class="opt no" onclick="fecharSheet()">Agora não</button>';
+  $('shOpts').style.display='flex'; $('shCorrigir').style.display='none';
   $('scrim').classList.add('on'); $('sheet').classList.add('on');
 }
 function fecharSheet(){ PEND=null; $('scrim').classList.remove('on'); $('sheet').classList.remove('on'); }
+
+/* Corrigir: em vez de só descartar um "não", pede-se uma explicação curta e
+   guarda-se junto da transcrição e da interpretação errada (tabela EVENTOS) —
+   é o material com que se afina o prompt mais tarde, a mesma lógica dos
+   "exemplos de ouro" que já lá estão, mas alimentada por erros reais. */
+function prepararCorrecao(){
+  $('shOpts').style.display='none'; $('shCorrigir').style.display='block';
+  const t=$('shCorrigirTxt'); t.value=''; setTimeout(()=>t.focus(),50);
+}
+function cancelarCorrecao(){
+  $('shCorrigir').style.display='none'; $('shOpts').style.display='flex';
+}
+async function enviarCorrecao(){
+  if(!PEND||OCUPADO) return;
+  OCUPADO=true;
+  try{
+    await apiEditar({acao:'registar_correcao',evento_pendente_id:PEND.evento_id,
+      correcao_comercial:$('shCorrigirTxt').value.trim()});
+    toast('Obrigado — registei a correcção.','ok');
+    fecharSheet();
+  }catch(e){ toast(e.message,'err'); }
+  finally{ OCUPADO=false; }
+}
 
 /* ---------- 7. NAVEGAÇÃO (rail desktop + tabbar mobile) ---------- */
 const meusLeads=()=>S.leads.filter(l=>!EU||!l.comercial_id||l.comercial_id===EU.id);

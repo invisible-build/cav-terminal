@@ -250,6 +250,30 @@
               },
               "renameOutput": true,
               "outputKey": "atualizar_propostas_banco"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a1b2c3d4-0000-4000-8000-000000000001",
+                    "leftValue": "={{ $json.body.acao }}",
+                    "rightValue": "registar_correcao",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "registar_correcao"
             }
           ]
         },
@@ -2861,6 +2885,85 @@
           "name": "Airtable Personal Access Token account"
         }
       }
+    },
+    {
+      "parameters": {
+        "curlImport": "",
+        "method": "GET",
+        "url": "https://api.airtable.com/v0/appIdD2RG5S0lWvfV/Eventos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "provideSslCertificates": false,
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ \"{Ref}='\" + ($json.body.evento_pendente_id || \"SEM_PENDENTE\") + \"'\" }}"
+            }
+          ]
+        },
+        "sendHeaders": false,
+        "sendBody": false,
+        "options": {},
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        736,
+        40
+      ],
+      "id": "a1b2c3d4-0000-4000-8000-000000000002",
+      "name": "Achar Evento (Correcao)",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "curlImport": "",
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/appIdD2RG5S0lWvfV/Eventos/{{ $json.records[0].id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "provideSslCertificates": false,
+        "sendQuery": false,
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { correcao_comercial: $('Webhook').first().json.body.correcao_comercial || '', Estado: 'rejeitado' } }) }}",
+        "options": {},
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        944,
+        40
+      ],
+      "id": "a1b2c3d4-0000-4000-8000-000000000003",
+      "name": "Registar Correcao",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
     }
   ],
   "connections": {
@@ -2936,6 +3039,13 @@
         [
           {
             "node": "Atualizar Propostas Banco",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Achar Evento (Correcao)",
             "type": "main",
             "index": 0
           }
@@ -3042,6 +3152,28 @@
       ]
     },
     "Atualizar Propostas Banco": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Achar Evento (Correcao)": {
+      "main": [
+        [
+          {
+            "node": "Registar Correcao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registar Correcao": {
       "main": [
         [
           {
