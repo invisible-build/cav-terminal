@@ -367,6 +367,52 @@
                 },
                 "conditions": [
                   {
+                    "id": "cavvoz002-0000-4000-8000-000000000001",
+                    "leftValue": "={{$json.categoria}}|{{$json.tipo}}",
+                    "rightValue": "outro|tarefa_concluida",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cavvoz002-0000-4000-8000-000000000002",
+                    "leftValue": "={{$json.categoria}}|{{$json.tipo}}",
+                    "rightValue": "outro|agendamento_alterado",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
                     "id": "dd0d5b78-c851-4832-8aed-e0aa19e6a7c9",
                     "leftValue": "={{$json.categoria}}",
                     "rightValue": "outro",
@@ -1022,7 +1068,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Este no recebe as varias ramificacoes do Switch, por isso corre uma vez por\n// evento. Como calcula sempre a partir do array completo de eventos do trigger,\n// as corridas seguintes dao exactamente o mesmo resultado e so repetiam o PATCH\n// no Airtable (~0,5s cada). Uma escrita por commit chega.\nif ($runIndex > 0) return [];\n\n// Calcular update da Lead — ver §6.5 da ESPECIFICAÇÃO\nconst eventos = $('Execute Workflow Trigger').first().json.eventos || [];\nlet leadIdFromCreate = null;\ntry { leadIdFromCreate = $('Criar LEAD (nova)').first().json.id; } catch (e) {}\nconst leadId = $('Execute Workflow Trigger').first().json._contexto_n8n.lead_id || leadIdFromCreate;\n\n// ultima_nota = nota_ficheiro do último evento de categoria 'nota'\nconst notas = eventos.filter(e => e.categoria === 'nota');\nconst ultimaNota = notas.length ? notas[notas.length - 1].nota_ficheiro : undefined;\n\n// mudança de estágio (se existir)\nconst mudancas = eventos.filter(e => e.tipo === 'mudanca_estagio');\nconst mudanca = mudancas.length ? mudancas[mudancas.length - 1] : null;\n\nconst fields = { id: leadId };\n\nif (ultimaNota !== undefined && ultimaNota !== null) {\n  fields.ultima_nota = ultimaNota;\n}\n\nif (mudanca) {\n  const subtipo = mudanca.dados ? mudanca.dados.subtipo : undefined;\n  if (subtipo === 'nutricao') {\n    fields.estagio = 'nutricao';\n    fields.fase_origem = mudanca.dados.fase_origem;\n    fields.motivo_saida = mudanca.dados.motivo;\n    fields.motivo_livre = mudanca.dados.motivo_livre;\n    fields.desfecho_proposto = mudanca.dados.desfecho_proposto;\n    fields.data_dita = mudanca.dados.data_dita;\n    fields.Status = 'em_triagem';\n  } else {\n    // avanço / recuo\n    fields.estagio = mudanca.dados.estagio_destino;\n  }\n} else {\n  fields.Status = 'ativa';\n}\n\n// banco_proposta (§4.10 do prompt) — merge, nunca overwrite cego: le o que ja\n// estava (Get Lead Atual, antes do Split eventos) e so mexe no(s) banco(s)\n// que este commit mencionou.\nconst bancoEventos = eventos.filter(e => e.tipo === 'banco_proposta' && e.dados && e.dados.banco && e.dados.estado_proposta);\nif (bancoEventos.length) {\n  let atual = [];\n  try {\n    const leadAtual = $('Get Lead Atual').first().json;\n    const fAtual = leadAtual.fields || leadAtual;\n    const raw = fAtual.propostas_banco;\n    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;\n    if (Array.isArray(parsed)) atual = parsed;\n  } catch (e) {}\n  const porNome = new Map(atual.map(p => [String(p.banco || '').toLowerCase(), { ...p }]));\n  for (const ev of bancoEventos) {\n    porNome.set(ev.dados.banco.toLowerCase(), { banco: ev.dados.banco, estado: ev.dados.estado_proposta });\n  }\n  fields.propostas_banco = JSON.stringify(Array.from(porNome.values()));\n}\n\nreturn [{ json: fields }];\n"
+        "jsCode": "// Este no recebe as varias ramificacoes do Switch, por isso corre uma vez por\n// evento. Como calcula sempre a partir do array completo de eventos do trigger,\n// as corridas seguintes dao exactamente o mesmo resultado e so repetiam o PATCH\n// no Airtable (~0,5s cada). Uma escrita por commit chega.\nif ($runIndex > 0) return [];\n\n// Calcular update da Lead — ver §6.5 da ESPECIFICAÇÃO\nconst eventos = $('Execute Workflow Trigger').first().json.eventos || [];\nlet leadIdFromCreate = null;\ntry { leadIdFromCreate = $('Criar LEAD (nova)').first().json.id; } catch (e) {}\nconst leadId = $('Execute Workflow Trigger').first().json._contexto_n8n.lead_id || leadIdFromCreate;\n\n// ultima_nota = nota_ficheiro do último evento de categoria 'nota'\nconst notas = eventos.filter(e => e.categoria === 'nota');\nconst ultimaNota = notas.length ? notas[notas.length - 1].nota_ficheiro : undefined;\n\n// mudança de estágio (se existir)\nconst mudancas = eventos.filter(e => e.tipo === 'mudanca_estagio');\nconst mudanca = mudancas.length ? mudancas[mudancas.length - 1] : null;\n\nconst fields = { id: leadId };\n\nif (ultimaNota !== undefined && ultimaNota !== null) {\n  fields.ultima_nota = ultimaNota;\n}\n\nif (mudanca) {\n  const subtipo = mudanca.dados ? mudanca.dados.subtipo : undefined;\n  if (subtipo === 'nutricao') {\n    fields.estagio = 'nutricao';\n    fields.fase_origem = mudanca.dados.fase_origem;\n    fields.motivo_saida = mudanca.dados.motivo;\n    fields.motivo_livre = mudanca.dados.motivo_livre;\n    fields.desfecho_proposto = mudanca.dados.desfecho_proposto;\n    fields.data_dita = mudanca.dados.data_dita;\n    fields.Status = 'em_triagem';\n  } else {\n    // avanço / recuo\n    fields.estagio = mudanca.dados.estagio_destino;\n  }\n} else {\n  fields.Status = 'ativa';\n}\n\n// banco_proposta (§4.10 do prompt) — merge, nunca overwrite cego: le o que ja\n// estava (Get Lead Atual, antes do Split eventos) e so mexe no(s) banco(s)\n// que este commit mencionou.\nconst bancoEventos = eventos.filter(e => e.tipo === 'banco_proposta' && e.dados && e.dados.banco && e.dados.estado_proposta);\nif (bancoEventos.length) {\n  let atual = [];\n  try {\n    const leadAtual = $('Get Lead Atual').first().json;\n    const fAtual = leadAtual.fields || leadAtual;\n    const raw = fAtual.propostas_banco;\n    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;\n    if (Array.isArray(parsed)) atual = parsed;\n  } catch (e) {}\n  const porNome = new Map(atual.map(p => [String(p.banco || '').toLowerCase(), { ...p }]));\n  for (const ev of bancoEventos) {\n    porNome.set(ev.dados.banco.toLowerCase(), { banco: ev.dados.banco, estado: ev.dados.estado_proposta });\n  }\n  fields.propostas_banco = JSON.stringify(Array.from(porNome.values()));\n}\n\n// checklist_documento (§4.14) — merge por item, mesmo padrao do banco_proposta.\nconst checklistEventos = eventos.filter(e => e.tipo === 'checklist_documento' && e.dados && e.dados.item && e.dados.estado_checklist);\nif (checklistEventos.length) {\n  let atual = [];\n  try {\n    const leadAtual = $('Get Lead Atual').first().json;\n    const fAtual = leadAtual.fields || leadAtual;\n    const raw = fAtual.checklist_documentos;\n    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;\n    if (Array.isArray(parsed)) atual = parsed;\n  } catch (e) {}\n  const porItem = new Map(atual.map(it => [String(it.item || '').toLowerCase(), { ...it }]));\n  for (const ev of checklistEventos) {\n    const existente = porItem.get(ev.dados.item.toLowerCase()) || {};\n    porItem.set(ev.dados.item.toLowerCase(), { ...existente, item: ev.dados.item, estado: ev.dados.estado_checklist });\n  }\n  fields.checklist_documentos = JSON.stringify(Array.from(porItem.values()));\n}\n\n// dados_lead (§4.13) — correcao directa; so entram os campos que vieram preenchidos.\nconst dadosLeadEventos = eventos.filter(e => e.tipo === 'dados_lead');\nif (dadosLeadEventos.length) {\n  const ev = dadosLeadEventos[dadosLeadEventos.length - 1];\n  const dl = ev.dados || {};\n  if (dl.telefone) fields.Telefone = dl.telefone;\n  if (dl.origem_lead) fields.origem_lead = dl.origem_lead;\n  if (dl.tipo_lead) fields.tipo = dl.tipo_lead;\n  if (dl.valor) fields.Valor = Number(dl.valor) || dl.valor;\n}\n\nreturn [{ json: fields }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2134,6 +2180,88 @@
           "name": "Airtable Personal Access Token account"
         }
       }
+    },
+    {
+      "parameters": {
+        "curlImport": "",
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/appIdD2RG5S0lWvfV/Tarefas/{{ $json.dados.tarefa_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "provideSslCertificates": false,
+        "sendQuery": false,
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { estado: 'concluida' } }) }}",
+        "options": {},
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        560
+      ],
+      "id": "cavvoz002-0000-4000-8000-000000000003",
+      "name": "Concluir TAREFA",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "curlImport": "",
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/appIdD2RG5S0lWvfV/Agenda/{{ $json.dados.agendamento_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "provideSslCertificates": false,
+        "sendQuery": false,
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: $json.dados.agendamento_acao === 'cancelar' ? { estado: 'cancelado' } : ($json.dados.quando ? { estado: 'agendado', quando: DateTime.fromISO($json.dados.quando, { zone: 'Europe/Lisbon' }).toISO() } : {}) }) }}",
+        "options": {},
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        752
+      ],
+      "id": "cavvoz002-0000-4000-8000-000000000004",
+      "name": "Atualizar AGENDA (Voz)",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
     }
   ],
   "connections": {
@@ -2196,6 +2324,20 @@
         [
           {
             "node": "Criar AGENDA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Concluir TAREFA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Atualizar AGENDA (Voz)",
             "type": "main",
             "index": 0
           }
@@ -2340,6 +2482,28 @@
       "main": [
         [],
         []
+      ]
+    },
+    "Concluir TAREFA": {
+      "main": [
+        [
+          {
+            "node": "Calcular update da Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar AGENDA (Voz)": {
+      "main": [
+        [
+          {
+            "node": "Calcular update da Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   }
