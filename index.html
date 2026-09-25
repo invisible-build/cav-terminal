@@ -637,9 +637,18 @@ const CHECKLIST_TEMPLATE=[
   {item:'CPCV (se existir)',categoria:'imovel'},
 ];
 const NOME_CATEGORIA_DOC={credito:'Crédito',imovel:'Imóvel'};
-const checklistDe=l=>(Array.isArray(l.checklist_documentos)&&l.checklist_documentos.length)
-  ? l.checklist_documentos
-  : CHECKLIST_TEMPLATE.map(t=>({...t,estado:'pendente'}));
+/* Mostra sempre a lista-modelo completa, com o estado guardado por cima. Itens
+   guardados que não estão no modelo aparecem no fim. Assim uma lead que ficou
+   só com o item dito por voz volta a ter os restantes. */
+const checklistDe=l=>{
+  const guardada=Array.isArray(l.checklist_documentos)?l.checklist_documentos:[];
+  const porItem=new Map(guardada.map(it=>[String(it.item||'').toLowerCase(),it]));
+  const cl=CHECKLIST_TEMPLATE.map(t=>{
+    const g=porItem.get(t.item.toLowerCase()); porItem.delete(t.item.toLowerCase());
+    return {...t,...g,estado:(g&&g.estado)||'pendente'};
+  });
+  return cl.concat([...porItem.values()]);
+};
 
 /* Bancos a que se pode pedir proposta (fase aguarda_decisao_banco). Uma lead pode
    ter várias entradas — o mesmo banco não se repete, mas pode haver vários bancos
