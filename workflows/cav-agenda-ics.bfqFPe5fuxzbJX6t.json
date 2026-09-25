@@ -1,10 +1,9 @@
 {
-  "id": "4c6f31edfc73488a",
+  "id": "bfqFPe5fuxzbJX6t",
   "name": "CAV · Agenda (ICS)",
-  "active": true,
+  "active": false,
   "settings": {
-    "executionOrder": "v1",
-    "binaryMode": "separate"
+    "executionOrder": "v1"
   },
   "nodes": [
     {

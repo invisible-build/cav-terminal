@@ -89,5 +89,19 @@
     "nome": "CAV · Importar/Exportar",
     "activo": true,
     "nos": 0
+  },
+  {
+    "ficheiro": "cav-ler-fin.etno1VQ31Bj7nMi2.json",
+    "id": "etno1VQ31Bj7nMi2",
+    "nome": "CAV · Ler FIN",
+    "activo": false,
+    "nos": 12
+  },
+  {
+    "ficheiro": "cav-agenda-ics.bfqFPe5fuxzbJX6t.json",
+    "id": "bfqFPe5fuxzbJX6t",
+    "nome": "CAV · Agenda (ICS)",
+    "activo": false,
+    "nos": 5
   }
 ]
