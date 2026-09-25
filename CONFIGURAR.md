@@ -183,12 +183,13 @@ Se responder a partir do ficheiro, está tudo ligado.
 node scripts/puxar.mjs          # apanhar o que foi mexido no browser
 git diff                        # ver se alguém mexeu
 <editar o ficheiro>
-node scripts/empurrar.mjs workflows/<ficheiro>.json
-<publicar no n8n>
+node scripts/empurrar.mjs workflows/<ficheiro>.json --publicar
 git commit -am "o que mudou e porquê"
 ```
 
-Publicar continua a ser um clique teu no n8n. De propósito.
+Num workflow activo, empurrar publica logo — a versão em produção muda no
+momento, não fica em rascunho. Por isso o `empurrar` pede `--publicar`:
+sem a flag, recusa e não altera nada. De propósito.
 
 ---
 

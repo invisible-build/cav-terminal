@@ -37,11 +37,11 @@ export N8N_API_KEY=...          # Definições → n8n API → criar chave
 
 node scripts/puxar.mjs                              # n8n  → ficheiros
 node scripts/empurrar.mjs workflows/<ficheiro>.json # ficheiro → n8n
+node scripts/empurrar.mjs workflows/<ficheiro>.json --publicar  # workflow activo
 ```
 
 Fluxo saudável: `puxar` antes de mexer (para apanhar o que foi alterado no
-browser), editar o ficheiro, `git diff` para ver o que muda, `empurrar`,
-e publicar no n8n.
+browser), editar o ficheiro, `git diff` para ver o que muda, `empurrar`.
 
 ## Regras que valem a pena manter
 
@@ -49,8 +49,9 @@ e publicar no n8n.
   nome, não trazem segredos. A `N8N_API_KEY` vive no ambiente, nunca aqui.
 - **`empurrar` não activa nem desactiva** workflows, de propósito. Ligar e
   desligar continua a ser uma decisão humana, feita no n8n.
-- **Publicar continua a ser um passo à parte.** Empurrar altera o rascunho;
-  a versão que corre em produção só muda quando publicas.
+- **Empurrar para um workflow activo publica logo.** Neste n8n não fica em
+  rascunho: a versão em produção muda no momento. Por isso o `empurrar`
+  recusa workflows activos sem `--publicar` — a flag é a decisão de publicar.
 - **Puxar antes de empurrar.** Se alguém mexeu no browser entretanto, empurrar
   por cima apaga esse trabalho.
 

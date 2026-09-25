@@ -29,9 +29,12 @@ Workflows principais: `bSTGP7PErDam8WPE` (Inbound), `7DoKXQGDJH4yivLK`
 
 - **Puxar antes de mexer.** Se alguém editou no browser, empurrar por cima
   apaga esse trabalho sem aviso.
-- **Empurrar ≠ publicar.** `empurrar.mjs` altera o rascunho. A versão que corre
-  em produção só muda quando alguém carrega em Publish no n8n. Isto é de
-  propósito: publicar é uma decisão humana.
+- **Empurrar para um workflow activo = publicar.** Neste n8n, o PUT da API
+  muda logo a versão em produção; não fica em rascunho (confirmado a
+  25/09/2026, comparando `versionId` com `activeVersionId`). Por isso o
+  `empurrar.mjs` recusa workflows activos, a menos que se passe `--publicar`.
+  Publicar é uma decisão humana: só usar `--publicar` quando o César o pedir
+  para aquela alteração. Workflows inactivos empurram-se sem flag.
 - **Não activar nem desactivar workflows a partir daqui.**
 - **Não apagar registos do Airtable.** Apagar é sempre do lado do César.
 - **A chave da API do n8n vive no ambiente**, nunca no repositório.
