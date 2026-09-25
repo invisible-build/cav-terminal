@@ -419,6 +419,11 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
       <input id="cfgImportar" placeholder="cav-importar">
     </div>
     <div class="fld">
+      <label>Caminho — ler FIN</label>
+      <input id="cfgFin" placeholder="cav-ler-fin">
+      <div class="help">Usado pelo botão 📎 nas propostas de banco: guarda o PDF da FIN e a IA faz o resumo.</div>
+    </div>
+    <div class="fld">
       <label>Chave da app (opcional)</label>
       <input id="cfgKey" placeholder="deixa vazio se não usares">
       <div class="help">Enviada no cabeçalho <span style="font-family:var(--mono)">x-cav-key</span>. Serve para o n8n recusar pedidos de fora.</div>
@@ -571,6 +576,7 @@ const CFG_DEF={
   ics:'cav-agenda-ics',
   exportar:'cav-exportar',
   importar:'cav-importar',
+  fin:'cav-ler-fin',
   key:''
 };
 let CFG={...CFG_DEF};
@@ -689,6 +695,17 @@ async function apiExportar(){
 }
 async function apiImportar(payload){
   const r=await fetch(url(CFG.importar),{method:'POST',headers:headers(),
+    body:JSON.stringify({comercial_id:EU?EU.id:null, ...payload})});
+  const txt=await r.text();
+  let j=null; try{ j=JSON.parse(txt); }catch(e){}
+  if(!r.ok||(j&&j.ok===false)) throw new Error((j&&(j.erro||j.message))||('Erro '+r.status+': '+txt.slice(0,140)));
+  return j||{};
+}
+
+/* FIN de um banco: o n8n guarda o PDF na lead e a IA devolve o resumo, já
+   junto à proposta desse banco. Demora uns 10–20 s (a IA lê o PDF inteiro). */
+async function apiFin(payload){
+  const r=await fetch(url(CFG.fin),{method:'POST',headers:headers(),
     body:JSON.stringify({comercial_id:EU?EU.id:null, ...payload})});
   const txt=await r.text();
   let j=null; try{ j=JSON.parse(txt); }catch(e){}
@@ -1554,9 +1571,15 @@ function cardPropostasBanco(id,l){
       +'<select onchange="mudarEstadoBanco(\''+id+'\','+idx+',this.value)" style="width:auto;font-size:12px;padding:4px 6px">'
       +Object.keys(NOME_ESTADO_BANCO).map(e=>'<option value="'+e+'"'+(p.estado===e?' selected':'')+'>'+esc(NOME_ESTADO_BANCO[e])+'</option>').join('')
       +'</select>'
+      +(FIN_A_LER===id+':'+idx
+        ? '<span style="font-size:11.5px;color:var(--gold2)">⏳ a ler a FIN…</span>'
+        : '<label style="cursor:pointer;font-size:14px;padding:2px 4px" title="Carregar FIN (PDF)">📎'
+          +'<input type="file" accept="application/pdf,.pdf" style="display:none" onchange="carregarFin(\''+id+'\','+idx+',this)"></label>')
       +'<button onclick="removerBanco(\''+id+'\','+idx+')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 4px" title="Remover">✕</button>'
     +'</div>'
+    +(p.fin?resumoFinHtml(l,p.fin):'')
   ).join('');
+  h+=tabelaFinHtml(pb);
   h+='<div style="display:flex;gap:6px;margin-top:8px">'
     +'<input id="pbNovo-'+id+'" list="dlBancos" placeholder="Nome do banco" style="flex:1">'
     +'<button class="opt" style="width:auto;padding:0 14px" onclick="adicionarBanco(\''+id+'\')">＋</button>'
@@ -1564,6 +1587,102 @@ function cardPropostasBanco(id,l){
     +'<datalist id="dlBancos">'+LISTA_BANCOS.map(b=>'<option value="'+esc(b)+'">').join('')+'</datalist>';
   return h+'</div>';
 }
+/* ---- FIN: resumo por banco + comparação ---- */
+const NOME_TAXA={variavel:'Variável',fixa:'Fixa',mista:'Mista'};
+const pct=v=>v==null?'—':Number(v).toLocaleString('pt-PT',{maximumFractionDigits:3})+'\u00a0%';
+const eur2=v=>v==null?'—':Number(v).toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2})+'\u00a0€';
+const prazoTxt=m=>m==null?'—':(m%12===0?(m/12)+' anos':m+' meses');
+const dataLonga=iso=>{ if(!iso)return '—'; const d=new Date(iso); return isNaN(d)?esc(iso):d.toLocaleDateString('pt-PT'); };
+const segurosMes=r=>{ const v=(r.seguros||[]).map(s=>s.custo_mensal).filter(x=>x!=null);
+  return v.length?v.reduce((a,b)=>a+b,0):null; };
+const totalMes=r=>r.prestacao==null?null:r.prestacao+(segurosMes(r)||0);
+let FIN_A_LER=null;          // 'leadId:idx' da FIN que está a ser lida
+
+function resumoFinHtml(l,fin){
+  const a=(l.fins||[]).find(x=>x.id===fin.anexo_id);
+  const pdf=a&&a.url?' · <a href="'+esc(a.url)+'" target="_blank" rel="noopener" style="color:var(--blue2)">📄 ver FIN</a>':'';
+  const h='<div style="margin:0 0 8px;padding:8px 10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:1.6">';
+  const r=fin.resumo;
+  if(!r) return h+'<span style="color:var(--orange2)">O PDF ficou guardado, mas a IA não conseguiu ler a FIN. Volta a carregá-la com 📎.</span>'+pdf+'</div>';
+  const linha=(...ps)=>{ const v=ps.filter(Boolean); return v.length?'<div>'+v.join(' · ')+'</div>':''; };
+  const b=(rot,v)=>rot+' <b>'+v+'</b>';
+  let taxa='';
+  if(r.tipo_taxa) taxa='Taxa '+esc((NOME_TAXA[r.tipo_taxa]||r.tipo_taxa).toLowerCase())+(r.indexante?': '+esc(r.indexante):'');
+  if(r.spread!=null) taxa+=(taxa?(r.indexante?' + ':' · '):'')+'spread '+pct(r.spread);
+  const hoje=isoLocal(new Date());
+  return h
+    +linha(r.montante!=null&&b('Montante',eur2(r.montante)), r.prazo_meses!=null&&b('Prazo',prazoTxt(r.prazo_meses)))
+    +linha(r.prestacao!=null&&b('Prestação',eur2(r.prestacao)+'/mês'), r.tan!=null&&b('TAN',pct(r.tan)), r.taeg!=null&&b('TAEG',pct(r.taeg)))
+    +linha(taxa&&taxa.charAt(0).toUpperCase()+taxa.slice(1))
+    +linha(r.mtic!=null&&b('MTIC',eur2(r.mtic)))
+    +linha((r.seguros||[]).length&&'Seguros: '+r.seguros.map(s=>esc(s.tipo)+(s.custo_mensal!=null?' ('+eur2(s.custo_mensal)+'/mês)':'')).join(', '))
+    +linha((r.comissoes||[]).length&&'Comissões: '+r.comissoes.map(c=>esc(c.descricao)+(c.valor!=null?' '+eur2(c.valor):'')).join(', '))
+    +linha((r.vendas_associadas||[]).length&&'Vendas associadas: '+r.vendas_associadas.map(esc).join(', '))
+    +linha(r.validade&&'Válida até '+dataLonga(r.validade)+(r.validade<hoje?' <span style="color:var(--red2)">(expirada)</span>':''))
+    +(r.notas?'<div style="color:var(--text2);font-style:italic">'+esc(r.notas)+'</div>':'')
+    +'<div style="color:var(--text3);font-size:11px;margin-top:4px">Resumo lido pela IA — confirma no PDF antes de enviar ao cliente.'+pdf+'</div>'
+    +'</div>';
+}
+
+/* Tabela lado a lado quando há FIN lida de 2+ bancos. Nas linhas em que "menos é
+   melhor" (prestação, total, TAEG, MTIC) o valor mais baixo fica a verde. */
+function tabelaFinHtml(pb){
+  const cs=pb.filter(p=>p.fin&&p.fin.resumo);
+  if(cs.length<2) return '';
+  const linhas=[
+    ['Prestação',r=>r.prestacao,eur2,true],
+    ['Seguros/mês',segurosMes,eur2,false],
+    ['Total/mês',totalMes,eur2,true],
+    ['TAEG',r=>r.taeg,pct,true],
+    ['TAN',r=>r.tan,pct,false],
+    ['Spread',r=>r.spread,pct,false],
+    ['MTIC',r=>r.mtic,eur2,true],
+    ['Montante',r=>r.montante,eur2,false],
+    ['Prazo',r=>r.prazo_meses,prazoTxt,false],
+    ['Taxa',r=>r.tipo_taxa,v=>v?esc(NOME_TAXA[v]||v):'—',false],
+    ['Validade',r=>r.validade,dataLonga,false],
+  ];
+  const td='padding:5px 8px;border-top:1px solid var(--border);white-space:nowrap';
+  let h='<div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--text2);margin:12px 0 4px">Comparação</div>'
+    +'<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="border-collapse:collapse;font-size:11.5px;min-width:100%">'
+    +'<tr><th style="'+td+';border-top:none"></th>'+cs.map(p=>'<th style="'+td+';border-top:none;text-align:right">'+esc(p.banco)+'</th>').join('')+'</tr>';
+  h+=linhas.map(([rot,val,fmt,menor])=>{
+    const vs=cs.map(p=>val(p.fin.resumo));
+    const nums=vs.filter(v=>typeof v==='number');
+    const melhor=menor&&nums.length>=2?Math.min(...nums):null;
+    return '<tr><td style="'+td+';color:var(--text2)">'+rot+'</td>'
+      +vs.map(v=>'<td style="'+td+';text-align:right'+(melhor!==null&&v===melhor?';color:var(--green2);font-weight:700':'')+'">'+fmt(v)+'</td>').join('')+'</tr>';
+  }).join('');
+  return h+'</table></div>';
+}
+
+async function carregarFin(id,idx,input){
+  const f=input.files&&input.files[0]; input.value='';
+  if(!f) return;
+  if(OCUPADO){ toast('Espera que termine a operação anterior.'); return; }
+  const l=leadDe(id); if(!l) return;
+  const p=propostasBancoDe(l)[idx]; if(!p) return;
+  if(!/pdf$/i.test(f.type)&&!/\.pdf$/i.test(f.name)){ toast('A FIN tem de ser um PDF.','err'); return; }
+  if(f.size>5*1024*1024){ toast('O PDF tem mais de 5 MB — o Airtable não aceita.','err'); return; }
+  OCUPADO=true; FIN_A_LER=id+':'+idx; net('busy');
+  if(LEAD_ABERTA===id) abrirLead(id);
+  try{
+    const b64=await new Promise((ok,ko)=>{ const fr=new FileReader();
+      fr.onload=()=>ok(String(fr.result).split(',')[1]||'');
+      fr.onerror=()=>ko(new Error('Não consegui ler o ficheiro.'));
+      fr.readAsDataURL(f); });
+    const r=await apiFin({lead_id:id,banco:p.banco,ficheiro:b64});
+    if(Array.isArray(r.propostas_banco)) l.propostas_banco=r.propostas_banco;
+    if(r.anexo&&r.anexo.id) l.fins=[...(l.fins||[]),r.anexo];
+    net('on');
+    toast(r.aviso||('FIN do '+p.banco+' lida.'),r.aviso?'err':'ok');
+  }catch(e){ net('off'); toast(e.message,'err'); }
+  finally{
+    OCUPADO=false; FIN_A_LER=null;
+    if(LEAD_ABERTA===id) abrirLead(id);
+  }
+}
+
 async function guardarPropostasBanco(id,novaLista){
   if(OCUPADO) return;
   OCUPADO=true;
@@ -1606,6 +1725,7 @@ function openCfg(){
   $('cfgIcs').value=CFG.ics||CFG_DEF.ics;
   $('cfgExportar').value=CFG.exportar||CFG_DEF.exportar;
   $('cfgImportar').value=CFG.importar||CFG_DEF.importar;
+  $('cfgFin').value=CFG.fin||CFG_DEF.fin;
   $('cfgKey').value=CFG.key||'';
   openM('mCfg');
 }
@@ -1617,6 +1737,7 @@ function saveCfg(){
        ics:$('cfgIcs').value.trim()||CFG_DEF.ics,
        exportar:$('cfgExportar').value.trim()||CFG_DEF.exportar,
        importar:$('cfgImportar').value.trim()||CFG_DEF.importar,
+       fin:$('cfgFin').value.trim()||CFG_DEF.fin,
        key:$('cfgKey').value.trim()};
   try{localStorage.setItem(CFG_KEY,JSON.stringify(CFG));}catch(e){}
   closeM('mCfg'); toast('Guardado','ok'); arrancar();

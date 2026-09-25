@@ -1,0 +1,429 @@
+{
+  "name": "CAV · Ler FIN",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cav-ler-fin",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "08107056-b702-5ed2-870e-78481e838b1d",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// VALIDAR PEDIDO — o Terminal manda o PDF da FIN em base64, com a lead e o banco.\n// O Airtable so aceita anexos ate 5 MB por esta via; \"JVBER\" e o inicio de \"%PDF\" em base64.\nconst b = $input.first().json.body || {};\nconst base64 = String(b.ficheiro || '').replace(/^data:[^,]*,/, '');\nconst banco = String(b.banco || '').trim();\nlet erro = null;\nif (!b.lead_id || !banco) erro = 'Falta a lead ou o banco.';\nelse if (!base64) erro = 'Não veio nenhum ficheiro.';\nelse if (base64.length * 3 / 4 > 5 * 1024 * 1024) erro = 'O PDF tem mais de 5 MB — o Airtable não aceita.';\nelse if (!base64.startsWith('JVBER')) erro = 'O ficheiro não é um PDF.';\nconst agora = new Date().toISOString();\nreturn [{ json: { erro, lead_id: b.lead_id, banco, base64,\n  nome: `FIN ${banco} ${agora.slice(0, 10)}.pdf`, carregada_em: agora } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "2e9123ce-dc28-5976-be8c-cd59f20e4de1",
+      "name": "Validar pedido"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b0f1f7a4-1c1e-4c55-9a3e-5b1f0c7d2e11",
+              "leftValue": "={{ !$json.erro }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "219fbf65-7149-531a-8172-ba3f784b8a03",
+      "name": "Pedido válido?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://content.airtable.com/v0/appIdD2RG5S0lWvfV/' + $json.lead_id + '/fins/uploadAttachment' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contentType: 'application/pdf', file: $json.base64, filename: $json.nome }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        -100
+      ],
+      "id": "96061102-84c3-5671-b3c0-59d5576ffa4b",
+      "name": "Guardar PDF (Airtable)",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "Precisa do campo de anexos \"fins\" na tabela de leads."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ system_instruction: { parts: [{ text: \"Lês uma FIN (Ficha de Informação Normalizada) de crédito à habitação de um banco português e extrais os números de que um comercial precisa para comparar propostas de bancos diferentes.\\n\\nRegras:\\n- Copias os valores tal como estão escritos na FIN. Nunca calculas, estimas nem arredondas.\\n- Se um valor não está na FIN, devolves null. Um campo vazio é melhor do que um número errado.\\n- Percentagens como número: 3,450 % → 3.45. Euros como número, sem símbolo: 1.234,56 € → 1234.56.\\n- prestacao é a prestação mensal do empréstimo como a FIN a apresenta; os seguros vão à parte, em seguros.\\n- Taxa mista: tan é a do período de taxa fixa; em notas dizes quanto tempo dura e o que vem depois.\\n- Se o spread tem bonificação por produtos associados, spread é o bonificado e vendas_associadas lista as condições.\\n- notas: no máximo duas frases, só com o que o comercial precisa de saber e não cabe nos outros campos.\\n- Se o documento não for uma FIN, devolves tudo a null e dizes em notas o que é.\" }] }, contents: [{ role: 'user', parts: [{ inline_data: { mime_type: 'application/pdf', data: $('Validar pedido').first().json.base64 } }, { text: 'Extrai o resumo desta FIN.' }] }], generationConfig: { temperature: 0, topP: 1, candidateCount: 1, seed: 42, maxOutputTokens: 4096, responseMimeType: 'application/json', responseSchema: {\"type\": \"object\", \"propertyOrdering\": [\"montante\", \"prazo_meses\", \"tipo_taxa\", \"indexante\", \"spread\", \"tan\", \"taeg\", \"prestacao\", \"mtic\", \"seguros\", \"comissoes\", \"vendas_associadas\", \"validade\", \"notas\"], \"required\": [\"montante\", \"prazo_meses\", \"tipo_taxa\", \"indexante\", \"spread\", \"tan\", \"taeg\", \"prestacao\", \"mtic\", \"seguros\", \"comissoes\", \"vendas_associadas\", \"validade\", \"notas\"], \"properties\": {\"montante\": {\"type\": \"number\", \"nullable\": true, \"description\": \"Montante do empréstimo, em euros.\"}, \"prazo_meses\": {\"type\": \"integer\", \"nullable\": true, \"description\": \"Prazo em meses (40 anos → 480).\"}, \"tipo_taxa\": {\"type\": \"string\", \"nullable\": true, \"enum\": [\"variavel\", \"fixa\", \"mista\"]}, \"indexante\": {\"type\": \"string\", \"nullable\": true, \"description\": \"Ex.: \\\"Euribor 12 meses\\\". null em taxa fixa.\"}, \"spread\": {\"type\": \"number\", \"nullable\": true, \"description\": \"Spread em %.\"}, \"tan\": {\"type\": \"number\", \"nullable\": true, \"description\": \"TAN em %.\"}, \"taeg\": {\"type\": \"number\", \"nullable\": true, \"description\": \"TAEG em %.\"}, \"prestacao\": {\"type\": \"number\", \"nullable\": true, \"description\": \"Prestação mensal em euros.\"}, \"mtic\": {\"type\": \"number\", \"nullable\": true, \"description\": \"Montante total imputado ao consumidor, em euros.\"}, \"seguros\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"propertyOrdering\": [\"tipo\", \"custo_mensal\"], \"required\": [\"tipo\", \"custo_mensal\"], \"properties\": {\"tipo\": {\"type\": \"string\", \"description\": \"Ex.: \\\"Vida\\\", \\\"Multirriscos\\\".\"}, \"custo_mensal\": {\"type\": \"number\", \"nullable\": true, \"description\": \"Custo mensal em euros; null se a FIN não o indica.\"}}}}, \"comissoes\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"propertyOrdering\": [\"descricao\", \"valor\"], \"required\": [\"descricao\", \"valor\"], \"properties\": {\"descricao\": {\"type\": \"string\"}, \"valor\": {\"type\": \"number\", \"nullable\": true, \"description\": \"Em euros.\"}}}}, \"vendas_associadas\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, \"description\": \"Produtos exigidos ou que bonificam o spread (domiciliação de ordenado, cartão…).\"}, \"validade\": {\"type\": \"string\", \"nullable\": true, \"description\": \"Data até à qual a proposta é válida, AAAA-MM-DD.\"}, \"notas\": {\"type\": \"string\", \"nullable\": true}}}, thinkingConfig: { thinkingLevel: 'minimal' } } }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        -200
+      ],
+      "id": "130e89dc-ef66-56c5-aef8-054e5c367bf5",
+      "name": "Ler FIN (Gemini)",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Zs54VAbrgvIn56RG",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "Chamada à parte da Secretária: prompt curto, não toca na cache do prompt grande. Gasta 1 pedido da quota diária."
+    },
+    {
+      "parameters": {
+        "jsCode": "// MONTAR RESUMO — se o Gemini falhou (429 por quota, etc.) o PDF ja ficou guardado\n// e a proposta regista o erro; o comercial volta a carregar a FIN mais tarde.\nconst r = $input.first().json;\nlet resumo = null, erro = null;\ntry {\n  const txt = r.candidates[0].content.parts.map(p => p.text || '').join('');\n  resumo = JSON.parse(txt);\n} catch (e) { erro = r.candidates ? 'ia_resposta_invalida' : 'ia_sem_resposta'; }\n\n// A resposta do upload traz os anexos do campo (chave = id do campo, nao o nome).\n// O nosso e o ultimo com o nome que lhe demos.\nconst up = $('Guardar PDF (Airtable)').first().json;\nconst anexos = Object.values(up.fields || {}).find(Array.isArray) || [];\nconst nome = $('Validar pedido').first().json.nome;\nconst anexo = [...anexos].reverse().find(a => a.filename === nome) || anexos[anexos.length - 1] || {};\nreturn [{ json: { resumo, erro, anexo_id: anexo.id || null, anexo_url: anexo.url || null } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        -200
+      ],
+      "id": "26ce2688-ee9d-5683-bfcd-71e8e35ed529",
+      "name": "Montar resumo"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "base": {
+          "__rl": true,
+          "value": "appIdD2RG5S0lWvfV",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblO1ODpXI5GInKGn",
+          "mode": "id"
+        },
+        "id": "={{ $('Validar pedido').first().json.lead_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        -200
+      ],
+      "id": "34506545-27f2-540c-a26c-52363a8062af",
+      "name": "Get Lead",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// JUNTAR A PROPOSTA — le o propostas_banco do Airtable agora (nao o que o Terminal\n// tinha) e so mexe na entrada deste banco. Banco que ainda nao estava na lista entra como pedido.\nconst v = $('Validar pedido').first().json;\nconst m = $('Montar resumo').first().json;\nconst lead = $input.first().json;\nconst f = lead.fields || lead;\nlet lista = [];\ntry {\n  const raw = f.propostas_banco;\n  const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;\n  if (Array.isArray(parsed)) lista = parsed;\n} catch (e) {}\nconst fin = { anexo_id: m.anexo_id, nome: v.nome, carregada_em: v.carregada_em, resumo: m.resumo, erro: m.erro };\nconst i = lista.findIndex(p => String(p.banco || '').toLowerCase() === v.banco.toLowerCase());\nif (i >= 0) lista[i] = { ...lista[i], fin };\nelse lista.push({ banco: v.banco, estado: 'pedido', fin });\nreturn [{ json: { id: v.lead_id, propostas_banco: JSON.stringify(lista), lista } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -200
+      ],
+      "id": "15468c31-6154-5ed5-8218-66c8553d7eb6",
+      "name": "Juntar à proposta"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appIdD2RG5S0lWvfV",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblO1ODpXI5GInKGn",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.id }}",
+            "propostas_banco": "={{ $json.propostas_banco }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "propostas_banco",
+              "displayName": "propostas_banco",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        -200
+      ],
+      "id": "88680407-2f00-5221-96da-34dbd4d214e2",
+      "name": "Atualizar Propostas Banco",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, propostas_banco: $('Juntar à proposta').first().json.lista, anexo: { id: $('Montar resumo').first().json.anexo_id, url: $('Montar resumo').first().json.anexo_url, nome: $('Validar pedido').first().json.nome }, aviso: $('Montar resumo').first().json.erro ? 'O PDF ficou guardado, mas a IA não conseguiu ler a FIN agora. Volta a carregá-la mais tarde.' : null }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1980,
+        -200
+      ],
+      "id": "65e8e1e3-bc78-589c-b0c3-8faa6422f36f",
+      "name": "Responder"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, erro: $json.erro }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        660,
+        120
+      ],
+      "id": "22fc7414-e5b0-5970-b51c-1adeae55e2a7",
+      "name": "Responder (pedido inválido)"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, erro: 'Não consegui guardar o PDF no Airtable. Tenta de novo; se continuar, confirma que o campo fins existe na tabela de leads.' }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        880,
+        0
+      ],
+      "id": "05e52181-6131-5c18-b4cb-68be9261fc1a",
+      "name": "Responder (falha ao guardar)"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validar pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar pedido": {
+      "main": [
+        [
+          {
+            "node": "Pedido válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pedido válido?": {
+      "main": [
+        [
+          {
+            "node": "Guardar PDF (Airtable)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder (pedido inválido)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar PDF (Airtable)": {
+      "main": [
+        [
+          {
+            "node": "Ler FIN (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder (falha ao guardar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler FIN (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "Montar resumo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Montar resumo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar resumo": {
+      "main": [
+        [
+          {
+            "node": "Get Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Lead": {
+      "main": [
+        [
+          {
+            "node": "Juntar à proposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Juntar à proposta": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Propostas Banco",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Propostas Banco": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
