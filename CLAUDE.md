@@ -80,6 +80,28 @@ que é o que evita comprometer com um "sim" sem sentido.
 Para confirmar que está a funcionar: numa confirmação, a execução **não** deve
 ter o nó `Chamar Secretária (Gemini)`.
 
+## Aprender com as correcções
+
+O Gemini não aprende sozinho: não tem memória entre chamadas. Quando o
+comercial diz "não" no cartão e escreve o que estava errado, o Editar grava
+`correcao_comercial` e `Estado: rejeitado` no registo de **Eventos**, junto da
+transcrição e da interpretação errada. Isso só muda alguma coisa quando vira
+prompt, e essa é a revisão periódica:
+
+1. `node scripts/correcoes.mjs --desde=AAAA-MM-DD` (precisa de
+   `AIRTABLE_TOKEN` no `.env`: token **só de leitura**, só esta base). O
+   relatório vai para `.correcoes/`, que o git ignora, porque tem dados de
+   clientes.
+2. Agrupar os erros por padrão. **Só entra no prompt o que se repete** (2+
+   casos) ou uma regra que falta de forma evidente. Um caso isolado ou uma
+   correcção confusa fica no relatório, não no prompt.
+3. Propor ao César a regra ou o exemplo novo, **no fim** do prompt (a cache
+   depende do início ser igual). Exemplos anonimizados: nunca nomes,
+   telefones nem valores reais de clientes.
+4. Erros de "era outra lead" resolvem-se muitas vezes com uma `alcunha` na
+   lead, sem tocar no prompt.
+5. Publicar a alteração ao prompt é decisão do César.
+
 ## Por fazer
 
 - O `Guardar Interpretação` corre também no caminho do atalho e reescreve no
