@@ -309,7 +309,8 @@
             "origem_lead": "={{ $json.body.campos.origem_lead }}",
             "estagio": "={{  $json.body.campos.estagio }}",
             "tipo": "={{  $json.body.campos.tipo }}",
-            "id": "={{ $json.body.lead_id }}"
+            "id": "={{ $json.body.lead_id }}",
+            "Email": "={{ $json.body.campos.email }}"
           },
           "matchingColumns": [
             "id"
@@ -385,7 +386,7 @@
               "display": true,
               "type": "string",
               "readOnly": false,
-              "removed": true
+              "removed": false
             },
             {
               "id": "Telefone",
@@ -1795,7 +1796,8 @@
             "Telefone": "={{ $json.body.campos.telefone }}",
             "origem_lead": "={{ $json.body.campos.origem_lead }}",
             "estagio": "={{ $json.body.campos.estagio || 'lead' }}",
-            "tipo": "={{ $json.body.campos.tipo }}"
+            "tipo": "={{ $json.body.campos.tipo }}",
+            "Email": "={{ $json.body.campos.email }}"
           },
           "matchingColumns": [],
           "schema": [

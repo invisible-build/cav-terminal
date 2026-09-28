@@ -568,6 +568,11 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
       <input id="nlTelefone" placeholder="912 345 678">
     </div>
     <div class="fld">
+      <label>Email</label>
+      <input id="nlEmail" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="nome@exemplo.pt">
+      <div class="help">Necessário para enviar emails à lead.</div>
+    </div>
+    <div class="fld">
       <label>Valor da proposta (€)</label>
       <input id="nlValor" type="number" step="1" min="0" placeholder="0">
     </div>
@@ -1183,7 +1188,7 @@ async function moverLeadEstagio(item,novoEstagio){
 
 /* ---------- 6c. PIPELINE — criar lead manualmente ---------- */
 function abrirNovaLead(estagioPreset){
-  $('nlNome').value=''; $('nlTelefone').value=''; $('nlValor').value='';
+  $('nlNome').value=''; $('nlTelefone').value=''; $('nlEmail').value=''; $('nlValor').value='';
   $('nlOrigem').value=''; $('nlTipo').value='';
   const est=S.estagios.length?S.estagios:ESTAGIOS_FALLBACK;
   $('nlEstagio').innerHTML=est.map(e=>'<option value="'+esc(e)+'"'+(e===(estagioPreset||est[0])?' selected':'')+'>'+esc(rotulo(e))+'</option>').join('');
@@ -1193,9 +1198,12 @@ async function guardarNovaLead(){
   if(OCUPADO) return;
   const nome=$('nlNome').value.trim();
   if(!nome){ toast('Dá um nome à lead.'); return; }
+  const email=$('nlEmail').value.trim();
+  if(!emailValido(email)){ toast('O email não parece válido.','err'); return; }
   const campos={
     nome,
     telefone:$('nlTelefone').value.trim(),
+    email,
     valor:$('nlValor').value!==''?Number($('nlValor').value):null,
     origem_lead:$('nlOrigem').value.trim(),
     tipo:$('nlTipo').value||null,
@@ -1458,6 +1466,8 @@ function abrirLead(id){
     +'<div class="fld" style="margin-bottom:9px"><label>Estágio</label><select id="edEstagio">'+estagiosOpts+'</select></div>'
     +'<div class="fld" style="margin-bottom:9px"><label>Valor da proposta (€)</label><input id="edValor" type="number" step="1" min="0" value="'+esc(l.valor||'')+'" placeholder="0"></div>'
     +'<div class="fld" style="margin-bottom:9px"><label>Telefone</label><input id="edTelefone" value="'+esc(l.telefone||'')+'"></div>'
+    +'<div class="fld" style="margin-bottom:9px"><label>Email</label><input id="edEmail" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(l.email||'')+'" placeholder="nome@exemplo.pt">'
+      +(l.email?'':'<div class="help" style="color:var(--orange2)">Sem email — não dá para enviar emails a esta lead.</div>')+'</div>'
     +'<div class="fld" style="margin-bottom:9px"><label>Origem da lead</label><input id="edOrigem" list="dlOrigens" value="'+esc(l.origem_lead||'')+'" placeholder="Facebook, Site, Referência…"></div>'
     +'<div class="fld" style="margin-bottom:0"><label>Tipo</label><select id="edTipo">'
     +'<option value=""'+(!l.tipo?' selected':'')+'>—</option>'
@@ -1551,13 +1561,19 @@ async function guardarNotaDitada(id,txt){
   }catch(e){ toast(e.message,'err'); }
   finally{ OCUPADO=false; }
 }
+/* Email vazio é aceite — há leads que só dão telefone; o aviso no painel diz que
+   assim não se pode enviar emails. Preenchido, tem de ter forma de email. */
+const emailValido=e=>!e||/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 async function guardarLead(id){
   if(OCUPADO) return;
   const l=leadDe(id); if(!l) return;
+  const email=$('edEmail').value.trim();
+  if(!emailValido(email)){ toast('O email não parece válido.','err'); return; }
   const campos={
     estagio:$('edEstagio').value,
     valor:$('edValor').value!==''?Number($('edValor').value):null,
     telefone:$('edTelefone').value.trim(),
+    email,
     origem_lead:$('edOrigem').value.trim(),
     tipo:$('edTipo').value||null
   };
