@@ -88,10 +88,12 @@ comercial diz "não" no cartão e escreve o que estava errado, o Editar grava
 transcrição e da interpretação errada. Isso só muda alguma coisa quando vira
 prompt, e essa é a revisão periódica:
 
-1. `node scripts/correcoes.mjs --desde=AAAA-MM-DD` (precisa de
-   `AIRTABLE_TOKEN` no `.env`: token **só de leitura**, só esta base). O
-   relatório vai para `.correcoes/`, que o git ignora, porque tem dados de
-   clientes.
+1. `node scripts/correcoes.mjs --desde=AAAA-MM-DD`. Precisa de um token
+   **só de leitura**, só desta base: no Mac, `AIRTABLE_TOKEN` no `.env`; na
+   rotina semanal (nuvem), uma *API credential* do ambiente para
+   `api.airtable.com`. A rede do ambiente não deixa chegar ao Airtable de
+   outra forma, e assim a rotina nunca vê o token. O relatório vai para
+   `.correcoes/`, que o git ignora, porque tem dados de clientes.
 2. Agrupar os erros por padrão. **Só entra no prompt o que se repete** (2+
    casos) ou uma regra que falta de forma evidente. Um caso isolado ou uma
    correcção confusa fica no relatório, não no prompt.

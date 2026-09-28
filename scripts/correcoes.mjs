@@ -4,8 +4,12 @@
 // correcções" no CLAUDE.md.
 //
 // Uso:  node scripts/correcoes.mjs [--desde=AAAA-MM-DD] [--json]
-// Precisa de AIRTABLE_TOKEN no ambiente: token SÓ DE LEITURA (data.records:read),
-// limitado à base do CAV. Nunca no repositório.
+// Token SÓ DE LEITURA (data.records:read), limitado à base do CAV, nunca no
+// repositório:
+// - no Mac, AIRTABLE_TOKEN no .env;
+// - na rotina semanal (nuvem), uma "API credential" do ambiente para
+//   api.airtable.com: o proxy junta o token ao pedido e o script nunca o vê.
+//   Por isso, sem AIRTABLE_TOKEN, o pedido segue sem cabeçalho.
 //
 // O relatório tem transcrições com dados de clientes: vai para .correcoes/,
 // que o git ignora. Nada disto se copia tal e qual para o prompt.
@@ -16,10 +20,8 @@ const TOKEN = process.env.AIRTABLE_TOKEN;
 const BASE = 'appIdD2RG5S0lWvfV';
 const desde = (process.argv.find(a => a.startsWith('--desde=')) || '').slice(8) || null;
 const emJson = process.argv.includes('--json');
-if (!TOKEN) {
-  console.error('Define AIRTABLE_TOKEN no ambiente (token só de leitura da base do CAV).');
-  process.exit(1);
-}
+const cabecalhos = TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {};
+const SEM_ACESSO = 'Sem acesso ao Airtable. No Mac: AIRTABLE_TOKEN no .env. Na rotina: a credencial de API do ambiente para api.airtable.com (ver CLAUDE.md).';
 if (desde && !/^\d{4}-\d{2}-\d{2}$/.test(desde)) { console.error('--desde tem de ser AAAA-MM-DD'); process.exit(1); }
 
 const formula = desde
@@ -30,7 +32,10 @@ let registos = [], offset;
 do {
   const q = new URLSearchParams({ filterByFormula: formula, pageSize: '100' });
   if (offset) q.set('offset', offset);
-  const r = await fetch(`https://api.airtable.com/v0/${BASE}/Eventos?${q}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
+  let r;
+  try { r = await fetch(`https://api.airtable.com/v0/${BASE}/Eventos?${q}`, { headers: cabecalhos }); }
+  catch (e) { console.error(`${SEM_ACESSO}\n(ligação falhou: ${e.cause?.code || e.message})`); process.exit(1); }
+  if (r.status === 401 || r.status === 403) { console.error(`${SEM_ACESSO}\n(HTTP ${r.status})`); process.exit(1); }
   if (!r.ok) { console.error(`Airtable → HTTP ${r.status}`, (await r.text()).slice(0, 300)); process.exit(1); }
   const j = await r.json();
   registos.push(...j.records);
