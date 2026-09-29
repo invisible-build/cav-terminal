@@ -4,12 +4,10 @@
 // correcções" no CLAUDE.md.
 //
 // Uso:  node scripts/correcoes.mjs [--desde=AAAA-MM-DD] [--json]
-// Token SÓ DE LEITURA (data.records:read), limitado à base do CAV, nunca no
-// repositório:
-// - no Mac, AIRTABLE_TOKEN no .env;
-// - na rotina semanal (nuvem), uma "API credential" do ambiente para
-//   api.airtable.com: o proxy junta o token ao pedido e o script nunca o vê.
-//   Por isso, sem AIRTABLE_TOKEN, o pedido segue sem cabeçalho.
+// Precisa de AIRTABLE_TOKEN: token SÓ DE LEITURA (data.records:read), limitado
+// à base do CAV, nunca no repositório. No Mac vem do .env; na rotina semanal
+// (nuvem), das Environment variables do ambiente "Default" — ver CLAUDE.md.
+// Sem ele o pedido segue sem cabeçalho e o Airtable responde 401.
 //
 // O relatório tem transcrições com dados de clientes: vai para .correcoes/,
 // que o git ignora. Nada disto se copia tal e qual para o prompt.
@@ -21,7 +19,7 @@ const BASE = 'appIdD2RG5S0lWvfV';
 const desde = (process.argv.find(a => a.startsWith('--desde=')) || '').slice(8) || null;
 const emJson = process.argv.includes('--json');
 const cabecalhos = TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {};
-const SEM_ACESSO = 'Sem acesso ao Airtable. No Mac: AIRTABLE_TOKEN no .env. Na rotina: a credencial de API do ambiente para api.airtable.com (ver CLAUDE.md).';
+const SEM_ACESSO = 'Sem acesso ao Airtable. No Mac: AIRTABLE_TOKEN no .env. Na rotina: AIRTABLE_TOKEN nas Environment variables do ambiente, e api.airtable.com permitido na rede (ver CLAUDE.md).';
 if (desde && !/^\d{4}-\d{2}-\d{2}$/.test(desde)) { console.error('--desde tem de ser AAAA-MM-DD'); process.exit(1); }
 
 const formula = desde
