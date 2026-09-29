@@ -741,7 +741,7 @@ const ESTAGIOS_FALLBACK=['lead','aguarda_documentos','aguarda_decisao_banco','ap
   'proposta_enviada','aguarda_banco','escritura_marcada','fecho'];
 const NOME_ESTAGIO={lead:'Lead',aguarda_documentos:'Documentos',aguarda_decisao_banco:'Decisão banco',
   aprovado:'Aprovado',proposta_enviada:'Proposta enviada',aguarda_banco:'Aguarda banco',
-  escritura_marcada:'Escritura',fecho:'Fecho',nutricao:'Nutrição'};
+  escritura_marcada:'Escritura',fecho:'Fecho',nutricao:'Fora do pipeline'};
 const rotulo=e=>NOME_ESTAGIO[e]||e||'—';
 
 /* Checklist de documentos (fase aguarda_documentos). Serve de ponto de partida
@@ -1168,7 +1168,9 @@ function cardPend(p){
 }
 
 function rPipe(){
-  const ls=ativos(), est=S.estagios.length?S.estagios:ESTAGIOS_FALLBACK;
+  // A coluna "Fora do pipeline" (nutricao) fica sempre no fim, venha ou não na
+  // configuração da agência: é para onde se arrasta uma lead para a tirar do pipeline.
+  const ls=ativos(), est=[...(S.estagios.length?S.estagios:ESTAGIOS_FALLBACK).filter(e=>e!=='nutricao'),'nutricao'];
   const total=ls.reduce((s,l)=>s+(Number(l.valor)||0),0);
   let h=secH('Pipeline · '+ls.length+' leads · '+eur(total));
   h+='<button class="opt yes" style="text-align:center;margin-bottom:9px" onclick="abrirNovaLead()">＋ Nova lead</button>';
@@ -1529,13 +1531,18 @@ function abrirLead(id){
   const pen=S.pendencias.filter(p=>p.lead_id===id&&p.estado==='aberta');
   const ag =S.agenda.filter(a=>a.lead_id===id&&a.estado!=='cancelado');
 
-  const estagiosOpts=(S.estagios.length?S.estagios:ESTAGIOS_FALLBACK).map(e=>
+  // "Fora do pipeline" entra sempre no menu: sem ela, uma lead já fora aparecia como
+  // "Lead" e guardar outra alteração devolvia-a ao pipeline sem ninguém dar por isso.
+  const estagiosOpts=[...(S.estagios.length?S.estagios:ESTAGIOS_FALLBACK).filter(e=>e!=='nutricao'),'nutricao'].map(e=>
     '<option value="'+esc(e)+'"'+(e===l.estagio?' selected':'')+'>'+esc(rotulo(e))+'</option>').join('');
 
   let h='';
   h+='<div class="p-quick">'
     +'<button data-ditar="'+esc(id)+'" onclick="notaRapida(\''+id+'\')">🎙 Ditar nota</button>'
     +'<button onclick="setTab(\'pipe\')">↗ Ver no pipeline</button>'
+    +(l.estagio==='nutricao'
+      ?'<button onclick="abrirReactivar(\''+id+'\')">↺ Reactivar</button>'
+      :'<button onclick="abrirSaida(\''+id+'\')">↺ Tirar do pipeline</button>')
     +'</div>';
   h+='<div class="card">'
     +'<div class="fld" style="margin-bottom:9px"><label>Estágio</label><select id="edEstagio">'+estagiosOpts+'</select></div>'
@@ -1646,6 +1653,7 @@ async function guardarLead(id){
   const email=$('edEmail').value.trim();
   if(!emailValido(email)){ toast('O email não parece válido.','err'); return; }
   if($('edEstagio').value==='nutricao'&&l.estagio!=='nutricao'){ abrirSaida(id); return; }
+  if(l.estagio==='nutricao'&&$('edEstagio').value!=='nutricao'){ reactivar(id,$('edEstagio').value); return; }
   const campos={
     estagio:$('edEstagio').value,
     valor:$('edValor').value!==''?Number($('edValor').value):null,
