@@ -35,7 +35,7 @@ do {
   let r;
   try { r = await fetch(`https://api.airtable.com/v0/${BASE}/Eventos?${q}`, { headers: cabecalhos }); }
   catch (e) { console.error(`${SEM_ACESSO}\n(ligação falhou: ${e.cause?.code || e.message})`); process.exit(1); }
-  if (r.status === 401 || r.status === 403) { console.error(`${SEM_ACESSO}\n(HTTP ${r.status})`); process.exit(1); }
+  if (r.status === 401 || r.status === 403) { console.error(`${SEM_ACESSO}\n(HTTP ${r.status}: ${(await r.text()).slice(0, 200)})`); process.exit(1); }
   if (!r.ok) { console.error(`Airtable → HTTP ${r.status}`, (await r.text()).slice(0, 300)); process.exit(1); }
   const j = await r.json();
   registos.push(...j.records);
