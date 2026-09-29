@@ -306,6 +306,10 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
 .doc.ok .box::after{content:'✓'}
 .doc.ok .txt{color:var(--text2)}
 .doc input:focus-visible+.box{outline:2px solid var(--gold2);outline-offset:2px}
+.doc-grupo{padding:2px 0 8px}
+.doc-grupo+.doc-grupo{border-top:1px solid var(--border);margin-top:6px}
+.doc-grupo:not(.actual) .doc{font-size:12px}
+.fase-tag{font-size:9.5px;font-weight:800;letter-spacing:.5px;color:#000;background:var(--gold2);border-radius:99px;padding:1px 7px;margin-left:6px;vertical-align:1px}
 .m-act{display:flex;gap:8px;margin-top:16px}
 .m-act button{flex:1;padding:11px;border-radius:9px;font-size:13px;font-weight:700}
 .m-act .cancel{background:var(--s2);border:1px solid var(--border);color:var(--text2)}
@@ -703,16 +707,24 @@ const CHECKLIST_TEMPLATE=[
   {item:'Certificado energético',categoria:'imovel'},
   {item:'CPCV (se existir)',categoria:'imovel'},
 ];
-const NOME_CATEGORIA_DOC={credito:'Crédito',imovel:'Imóvel'};
+const NOME_CATEGORIA_DOC={credito:'Documentos do cliente',imovel:'Documentos do imóvel'};
+/* A checklist acompanha a lead da recolha de documentos até à escritura. Até à
+   decisão do banco pedem-se os documentos do cliente; depois da aprovação, os do
+   imóvel. O grupo da fase actual é o que fica em destaque. */
+const FASES_CHECKLIST=['aguarda_documentos','aguarda_decisao_banco','aprovado','proposta_enviada','aguarda_banco','escritura_marcada'];
+const grupoDaFase=e=>(e==='aguarda_documentos'||e==='aguarda_decisao_banco')?'credito':'imovel';
 /* Mostra sempre a lista-modelo completa, com o estado guardado por cima. Itens
    guardados que não estão no modelo aparecem no fim. Assim uma lead que ficou
    só com o item dito por voz volta a ter os restantes. */
 const checklistDe=l=>{
   const guardada=Array.isArray(l.checklist_documentos)?l.checklist_documentos:[];
   const porItem=new Map(guardada.map(it=>[String(it.item||'').toLowerCase(),it]));
+  // Da aprovação em diante, o que não tem registo dos documentos do cliente conta
+  // como recebido: o banco não aprova sem eles (leads anteriores à checklist).
+  const avancada=FASES_CHECKLIST.indexOf(l.estagio)>=FASES_CHECKLIST.indexOf('aprovado');
   const cl=CHECKLIST_TEMPLATE.map(t=>{
     const g=porItem.get(t.item.toLowerCase()); porItem.delete(t.item.toLowerCase());
-    return {...t,...g,estado:(g&&g.estado)||'pendente'};
+    return {...t,...g,estado:(g&&g.estado)||(avancada&&t.categoria==='credito'?'recebido':'pendente')};
   });
   return cl.concat([...porItem.values()]);
 };
@@ -1478,7 +1490,7 @@ function abrirLead(id){
     +'</div>'
     +'<button class="opt yes" style="margin-top:9px;text-align:center" onclick="guardarLead(\''+id+'\')">💾 Guardar alterações</button>'
     +'<datalist id="dlOrigens"><option value="Facebook Ads"><option value="Instagram"><option value="Google Ads"><option value="Site"><option value="Referência"><option value="Feira"><option value="Chamada fria"><option value="WhatsApp"></datalist>';
-  if(l.estagio==='aguarda_documentos') h+=cardChecklist(id,l);
+  if(FASES_CHECKLIST.includes(l.estagio)||(Array.isArray(l.checklist_documentos)&&l.checklist_documentos.length)) h+=cardChecklist(id,l);
   if(l.estagio==='aguarda_decisao_banco'||propostasBancoDe(l).length) h+=cardPropostasBanco(id,l);
   h+='<div class="card" style="margin-top:9px">'
     +'<div class="fld" style="margin-bottom:8px"><label>Adicionar anotação</label><textarea id="edNota" rows="3" placeholder="Escreve uma nota sobre esta lead…"></textarea></div>'
@@ -1605,24 +1617,27 @@ function cardChecklist(id,l){
   const recebidos=cl.filter(it=>it.estado==='recebido').length;
   const porCategoria={};
   cl.forEach((it,idx)=>{ const c=it.categoria||'outros'; (porCategoria[c]=porCategoria[c]||[]).push({...it,idx}); });
-  const faltam=cl.length-recebidos;
+  const actual=grupoDaFase(l.estagio);
   let h='<div class="card" style="margin-top:9px">'
-    +'<div class="fld" style="margin-bottom:0"><label>Checklist de documentos</label></div>'
-    +'<div class="prog"><i style="width:'+(cl.length?Math.round(recebidos/cl.length*100):0)+'%"></i></div>'
-    +(faltam
-      ? '<div class="prog-txt">'+recebidos+' de '+cl.length+' recebidos · <b>faltam '+faltam+'</b></div>'
-      : '<div class="prog-txt feito"><b>✓ Todos os documentos recebidos</b></div>');
-  // Recebido = ✓ verde; em falta = caixa âmbar. O texto do recebido continua
-  // legível (sem risco): "já tenho" não é "cancelado".
-  h+=Object.keys(porCategoria).map(cat=>
-    '<div class="sub-h">'+esc(NOME_CATEGORIA_DOC[cat]||cat)+'</div>'
-    +porCategoria[cat].map(it=>
+    +'<div class="fld" style="margin-bottom:0"><label>Checklist de documentos</label></div>';
+  // Um bloco por grupo, cada um com o seu progresso; o da fase actual leva a
+  // etiqueta e vem primeiro. Recebido = ✓ verde; em falta = caixa âmbar.
+  const cats=Object.keys(porCategoria).sort((a,b)=>(b===actual)-(a===actual));
+  h+=cats.map(cat=>{
+    const its=porCategoria[cat], rec=its.filter(it=>it.estado==='recebido').length, falta=its.length-rec;
+    return '<div class="doc-grupo'+(cat===actual?' actual':'')+'">'
+      +'<div class="sub-h">'+esc(NOME_CATEGORIA_DOC[cat]||cat)+(cat===actual?' <span class="fase-tag">fase actual</span>':'')+'</div>'
+      +'<div class="prog"><i style="width:'+(its.length?Math.round(rec/its.length*100):0)+'%"></i></div>'
+      +(falta
+        ? '<div class="prog-txt">'+rec+' de '+its.length+' recebidos · <b>faltam '+falta+'</b></div>'
+        : '<div class="prog-txt feito"><b>✓ Todos recebidos</b></div>')
+    +its.map(it=>
       '<label class="doc'+(it.estado==='recebido'?' ok':'')+'">'
         +'<input type="checkbox" '+(it.estado==='recebido'?'checked':'')+' onchange="toggleChecklistItem(\''+id+'\','+it.idx+')">'
         +'<span class="box"></span><span class="txt">'+esc(it.item)+'</span>'
       +'</label>'
-    ).join('')
-  ).join('');
+    ).join('')+'</div>';
+  }).join('');
   return h+'</div>';
 }
 async function toggleChecklistItem(id,idx){
