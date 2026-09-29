@@ -309,6 +309,20 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
 .doc-grupo{padding:2px 0 8px}
 .doc-grupo+.doc-grupo{border-top:1px solid var(--border);margin-top:6px}
 .doc-grupo:not(.actual) .doc{font-size:12px}
+.rec{--c:var(--orange2);border-left:3px solid var(--c)}
+.rec.futuro{--c:var(--border2)}
+.rec-top{display:flex;align-items:flex-start;gap:10px}
+.rec-nome{flex:1;font-size:14px;font-weight:700;text-align:left;background:none;border:none;padding:0;cursor:pointer;color:var(--text)}
+.rec-linha{font-size:12px;color:var(--text2);margin-top:3px}
+.rec-prox{font-size:12.5px;font-weight:700;margin-top:6px;color:var(--c)}
+.rec.futuro .rec-prox{color:var(--text2);font-weight:600}
+.rec-prazo{font-size:11px;color:var(--text2);margin-top:2px}
+.rec-prazo.curto{color:var(--red2);font-weight:700}
+.rec-dica{font-size:11.5px;color:var(--gold2);margin-top:6px}
+.rec-falta{display:inline-block;font-size:10px;font-weight:800;color:#000;background:var(--orange2);border-radius:99px;padding:1px 7px;margin-left:6px;vertical-align:2px}
+.rec-btn{flex:none;padding:7px 12px;border-radius:8px;font-size:12px;font-weight:700;background:var(--gold);color:#000;border:none;cursor:pointer}
+.rec-btn.sec{background:var(--s2);color:var(--text);border:1px solid var(--border)}
+.rec.perdida{--c:var(--border2);opacity:.6}
 .fase-tag{font-size:9.5px;font-weight:800;letter-spacing:.5px;color:#000;background:var(--gold2);border-radius:99px;padding:1px 7px;margin-left:6px;vertical-align:1px}
 .m-act{display:flex;gap:8px;margin-top:16px}
 .m-act button{flex:1;padding:11px;border-radius:9px;font-size:13px;font-weight:700}
@@ -393,6 +407,7 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
       <section class="view" id="v-pipe"><div class="wrap" id="c-pipe"></div></section>
       <section class="view" id="v-tarefas"><div class="wrap" id="c-tarefas"></div></section>
       <section class="view" id="v-agenda"><div class="wrap" id="c-agenda"></div></section>
+      <section class="view" id="v-recuperar"><div class="wrap" id="c-recuperar"></div></section>
       <section class="view" id="v-equipa"><div class="wrap" id="c-equipa"></div></section>
     </main>
   </div>
@@ -528,6 +543,46 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
 </div>
 
 <!-- ====================== MODAL EVENTO (criar/editar agenda) ====================== -->
+<div class="modal" id="mSaida">
+  <div class="modal-in">
+    <h3>Tirar do pipeline</h3>
+    <p id="saidaLead" style="font-size:12.5px;color:var(--text2);margin:-6px 0 12px"></p>
+    <div class="fld">
+      <label>Motivo</label>
+      <select id="saidaMotivo"></select>
+    </div>
+    <div class="fld">
+      <label>Voltar a contactar em (opcional)</label>
+      <input type="date" id="saidaData">
+      <div class="help">Se o cliente disse quando. Sem data, o Terminal sugere uma pelo motivo.</div>
+    </div>
+    <div class="fld">
+      <label>Nota (opcional)</label>
+      <input id="saidaNota" placeholder="Ex.: espera pela avaliação do imóvel que está a vender">
+    </div>
+    <div class="m-act">
+      <button class="cancel" onclick="closeM('mSaida')">Cancelar</button>
+      <button class="ok" onclick="confirmarSaida()">Tirar do pipeline</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="mReactivar">
+  <div class="modal-in">
+    <h3>Reactivar lead</h3>
+    <p id="reactLead" style="font-size:12.5px;color:var(--text2);margin:-6px 0 12px"></p>
+    <div class="fld">
+      <label>Volta para</label>
+      <select id="reactEstagio"></select>
+      <div class="help">Por omissão, a fase onde estava quando saiu. O histórico fica todo.</div>
+    </div>
+    <div class="m-act">
+      <button class="cancel" onclick="closeM('mReactivar')">Cancelar</button>
+      <button class="ok" onclick="confirmarReactivar()">Reactivar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="mEvento">
   <div class="modal-in">
     <h3 id="evModalTitulo">Novo evento</h3>
@@ -998,12 +1053,14 @@ const ICONS={
   agenda:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>',
   equipa:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9.6" r="2.3"/><path d="M3.3 19.2c.5-3.1 2.8-5.2 5.7-5.2s5.2 2.1 5.7 5.2"/><path d="M15.2 14.3c2.1.2 3.8 1.9 4.3 4.4"/></svg>',
 };
+ICONS.recuperar='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.9h3.9"/><path d="M12 8.5V12l2.4 1.6"/></svg>';
 const TABS=[
   {id:'voz',    n:'Falar',   ic:ICONS.voz,    cnt:()=>0},
   {id:'hoje',   n:'Hoje',    ic:ICONS.hoje,   cnt:()=>minhasTarefas().filter(t=>t.estado!=='concluida').length},
   {id:'pipe',   n:'Pipeline',ic:ICONS.pipe,   cnt:()=>ativos().length},
   {id:'tarefas',n:'Tarefas', ic:ICONS.tarefas,cnt:()=>minhasTarefas().filter(t=>t.estado!=='concluida').length},
   {id:'agenda', n:'Agenda',  ic:ICONS.agenda, cnt:()=>S.agenda.filter(a=>a.estado!=='cancelado').length},
+  {id:'recuperar',n:'Recuperar',ic:ICONS.recuperar,cnt:()=>recuperaveis().filter(r=>r.dias_para<=0).length},
   {id:'equipa', n:'Equipa',  ic:ICONS.equipa, cnt:()=>S.comerciais.length},
 ];
 function setTab(id){ TAB=id;
@@ -1030,7 +1087,7 @@ function render(){
   const wc=$('whoChip'), wr=$('whoChipR');
   if(wc)wc.innerHTML=whoHtml; if(wr)wr.innerHTML=whoHtml;
   renderNav();
-  ({voz:()=>{},hoje:rHoje,pipe:rPipe,tarefas:rTarefas,agenda:rAgenda,equipa:rEquipa}[TAB]||rHoje)();
+  ({voz:()=>{},hoje:rHoje,pipe:rPipe,tarefas:rTarefas,agenda:rAgenda,recuperar:rRecuperar,equipa:rEquipa}[TAB]||rHoje)();
 }
 
 function secH(titulo,cnt){ return '<div class="sec-h"><h2>'+esc(titulo)+'</h2><div class="line"></div>'
@@ -1119,7 +1176,9 @@ function rPipe(){
     const col=ls.filter(l=>l.estagio===e);
     return '<div class="col-k" data-estagio="'+esc(e)+'"><div class="col-h"><span class="d" style="background:'+CORES[i%CORES.length]+'"></span>'
       +'<span class="t">'+esc(rotulo(e))+'</span><span class="n">'+col.length+'</span></div>'
-      +'<div class="col-b">'+(col.length?col.map(l=>{
+      +'<div class="col-b">'+(e==='nutricao'
+        ?'<button class="mini" onclick="setTab(\'recuperar\')"><div class="n">'+recuperaveis().length+' em Recuperar →</div><div class="m"><span>Larga aqui para tirar do pipeline</span></div></button>'
+        :col.length?col.map(l=>{
         const d=dias(l.ultimo_contacto);
         return '<button class="mini" data-lead="'+esc(l.id)+'" onclick="abrirLead(\''+l.id+'\')"><div class="n">'+esc(l.nome)+'</div>'
           +'<div class="m">'+(l.valor?'<span class="val" style="font-size:10px">'+eur(l.valor)+'</span>':'')
@@ -1183,10 +1242,14 @@ function leadDragEnd(ev){
 }
 async function moverLeadEstagio(item,novoEstagio){
   if(OCUPADO){ toast('Espera a acção anterior terminar.'); return; }
+  // Sair do pipeline pede sempre o motivo; voltar de lá é uma reactivação.
+  if(novoEstagio==='nutricao'){ abrirSaida(item.id); return; }
+  if(item.estagio==='nutricao'){ reactivar(item.id,novoEstagio); return; }
   const anterior=item.estagio;
   item.estagio=novoEstagio; render();
   OCUPADO=true; net('busy'); toast('A mover…');
-  const campos={estagio:novoEstagio, valor:item.valor??null, telefone:item.telefone||'',
+  // O Editar grava todos estes campos: o que não seguir aqui ficava vazio no Airtable.
+  const campos={estagio:novoEstagio, valor:item.valor??null, telefone:item.telefone||'', email:item.email||'',
     origem_lead:item.origem_lead||'', tipo:item.tipo||null};
   try{
     await apiEditar({acao:'editar_lead',lead_id:item.id,campos});
@@ -1490,6 +1553,7 @@ function abrirLead(id){
     +'</div>'
     +'<button class="opt yes" style="margin-top:9px;text-align:center" onclick="guardarLead(\''+id+'\')">💾 Guardar alterações</button>'
     +'<datalist id="dlOrigens"><option value="Facebook Ads"><option value="Instagram"><option value="Google Ads"><option value="Site"><option value="Referência"><option value="Feira"><option value="Chamada fria"><option value="WhatsApp"></datalist>';
+  if(l.estagio==='nutricao') h+=cardForaPipeline(l);
   if(FASES_CHECKLIST.includes(l.estagio)||(Array.isArray(l.checklist_documentos)&&l.checklist_documentos.length)) h+=cardChecklist(id,l);
   if(l.estagio==='aguarda_decisao_banco'||propostasBancoDe(l).length) h+=cardPropostasBanco(id,l);
   h+='<div class="card" style="margin-top:9px">'
@@ -1581,6 +1645,7 @@ async function guardarLead(id){
   const l=leadDe(id); if(!l) return;
   const email=$('edEmail').value.trim();
   if(!emailValido(email)){ toast('O email não parece válido.','err'); return; }
+  if($('edEstagio').value==='nutricao'&&l.estagio!=='nutricao'){ abrirSaida(id); return; }
   const campos={
     estagio:$('edEstagio').value,
     valor:$('edValor').value!==''?Number($('edValor').value):null,
@@ -1823,6 +1888,148 @@ function removerBanco(id,idx){
   if(!confirm('Remover o '+p.banco+(p.fin?' e o resumo da FIN':'')+'?')) return;
   const pb=propostasBancoDe(l).filter((_,i)=>i!==idx);
   guardarPropostasBanco(id,pb);
+}
+
+/* ---------- 8b. RECUPERAR — leads fora do pipeline ----------
+   Uma lead em "nutricao" saiu do pipeline mas pode voltar até 6 meses depois de
+   sair, com o histórico todo. A data do próximo contacto sai do motivo: a que o
+   cliente disse, senão um intervalo por motivo (dias: null = saída definitiva,
+   não entra em Recuperar). Os intervalos são o ponto de partida combinado com o
+   César a 29/09/2026 — afinam-se aqui. */
+const JANELA_RECUPERAR=180;
+const DATA_ARRANQUE_RECUPERAR='2026-09-29'; // leads que já estavam fora sem data_saida contam daqui
+const MOTIVOS_SAIDA={
+  nao_atendeu:{n:'Sem resposta',dias:21,depois:45},
+  atendeu_mas_nao_podia_falar:{n:'Não podia falar',dias:7},
+  ligar_mais_tarde:{n:'Pediu para ligar mais tarde',dias:7},
+  nao_encontrou_imovel:{n:'Não encontrou imóvel',dias:30},
+  aguarda_taxas:{n:'Aguarda melhores condições',dias:45},
+  adiou_a_compra:{n:'Adiou a compra',dias:90},
+  aguarda_venda_imovel:{n:'Aguarda venda do imóvel actual',dias:60},
+  sem_entrada:{n:'Sem entrada / capitais próprios',dias:90,jovem:true},
+  sem_perfil_de_credito:{n:'Sem perfil de crédito',dias:90,jovem:true},
+  banco_recusou:{n:'Banco recusou',dias:60},
+  desistiu_depois_de_aprovado:{n:'Desistiu depois de aprovado',dias:30},
+  sem_interesse:{n:'Sem interesse',dias:120,depois:null},
+  outro:{n:'Outro',dias:30},
+  escolheu_concorrencia:{n:'Escolheu a concorrência',dias:null},
+  ja_nao_precisa_do_emprestimo:{n:'Já não precisa do crédito',dias:null},
+  comprou_sem_financiamento:{n:'Comprou sem financiamento',dias:null},
+  nao_quer_mais_saber:{n:'Não quer mais saber',dias:null},
+};
+// No Airtable, duas opções de fase_origem têm outro nome que o estágio.
+const FASE_DE_OPCAO={'leads':'lead','aguarda documentos':'aguarda_documentos'};
+const somaDias=(iso,n)=>{ const d=new Date(String(iso).slice(0,10)+'T12:00:00'); d.setDate(d.getDate()+n); return isoLocal(d); };
+
+function foraDoPipeline(){
+  return meusLeads().filter(l=>l.estagio==='nutricao').map(l=>{
+    const saida=String(l.data_saida||DATA_ARRANQUE_RECUPERAR).slice(0,10);
+    const m=MOTIVOS_SAIDA[l.motivo_saida]||null;
+    const desde=Math.max(0,dias(saida)||0), restam=JANELA_RECUPERAR-desde;
+    const definitiva=!!(m&&m.dias===null);
+    let prox=null;
+    if(!definitiva){
+      const dd=l.data_dita?String(l.data_dita).slice(0,10):null;
+      const uc=l.ultimo_contacto?String(l.ultimo_contacto).slice(0,10):null;
+      if(dd&&dd>=saida) prox=dd;
+      else if(uc&&uc>saida){ const d2=m?(m.depois===undefined?m.dias:m.depois):14; prox=d2===null?null:somaDias(uc,d2); }
+      else prox=somaDias(saida,m?m.dias:14);
+      const fim=somaDias(saida,JANELA_RECUPERAR);
+      if(prox&&prox>fim) prox=fim;
+    }
+    return {l,m,saida,desde,restam,definitiva,prox,dias_para:prox?-dias(prox):Infinity,perdida:definitiva||restam<0};
+  });
+}
+const recuperaveis=()=>foraDoPipeline().filter(r=>!r.perdida).sort((a,b)=>a.dias_para-b.dias_para);
+const perdidas=()=>foraDoPipeline().filter(r=>r.perdida).sort((a,b)=>a.desde-b.desde);
+
+function rRecuperar(){
+  const rs=recuperaveis(), ps=perdidas();
+  let h=secH('Recuperar',rs.length)
+    +'<div style="font-size:12px;color:var(--text2);margin:-4px 0 12px">Leads fora do pipeline. Podem ser reactivadas até 6 meses depois de sair, com o histórico todo.</div>';
+  h+=rs.length?'<div class="grid">'+rs.map(r=>cardRecuperar(r)).join('')+'</div>':vazio('↺','Nenhuma lead para recuperar.');
+  if(ps.length) h+=secH('Perdidas',ps.length)
+    +'<div style="font-size:12px;color:var(--text2);margin:-4px 0 10px">Passaram os 6 meses, ou saíram de vez. Só para consulta.</div>'
+    +'<div class="grid">'+ps.map(r=>cardRecuperar(r)).join('')+'</div>';
+  $('c-recuperar').innerHTML=h;
+}
+function cardRecuperar(r,semMoldura){
+  const l=r.l, m=r.m;
+  const origem=l.fase_origem?rotulo(FASE_DE_OPCAO[l.fase_origem]||l.fase_origem):null;
+  const cls=(semMoldura?'':'card ')+'rec'+(r.perdida?' perdida':(r.dias_para>0?' futuro':''));
+  let h='<div class="'+cls+'"><div class="rec-top">'
+    +'<button class="rec-nome" onclick="abrirLead(\''+l.id+'\')">'+esc(l.nome)+'</button>'
+    +(r.perdida?'':'<button class="rec-btn" onclick="abrirReactivar(\''+l.id+'\')">Reactivar</button>')+'</div>'
+    +'<div class="rec-linha">'+esc(m?m.n:'Motivo por indicar')+(origem?' · saiu de '+esc(origem):'')+' · há '+r.desde+' dias</div>'
+    +(l.motivo_livre?'<div class="rec-linha" style="font-style:italic">'+esc(l.motivo_livre)+'</div>':'')
+    +(!m&&!r.perdida?'<button class="rec-falta" style="border:none;cursor:pointer;margin:6px 0 0" onclick="abrirSaida(\''+l.id+'\')">falta o motivo — indicar</button>':'');
+  if(r.perdida) return h+'<div class="rec-linha">'+(r.definitiva?'Saída definitiva':'Passaram os 6 meses')+'</div></div>';
+  const quando=r.dias_para<=0?(r.dias_para===0?'hoje':'há '+(-r.dias_para)+' dias'):'em '+r.dias_para+' dias';
+  h+=(r.prox
+      ?'<div class="rec-prox">'+(r.dias_para<=0?'Voltar a contactar: ':'Próximo contacto: ')+quando+' · '+dataLonga(r.prox)+'</div>'
+      :'<div class="rec-prox">Já contactado depois de sair — sem nova data sugerida</div>')
+    +'<div class="rec-prazo'+(r.restam<=30?' curto':'')+'">'+(r.restam>0?'Faltam '+r.restam+' dias para os 6 meses':'Último dia para reactivar')+'</div>'
+    +(m&&m.jovem?'<div class="rec-dica">Até 35 anos? A garantia pública e a isenção de IMT e imposto do selo podem resolver a falta de entrada.</div>':'');
+  return h+'</div>';
+}
+function cardForaPipeline(l){
+  const r=foraDoPipeline().find(x=>x.l.id===l.id); if(!r) return '';
+  return '<div class="card" style="margin-top:9px"><div class="fld" style="margin-bottom:6px"><label>Fora do pipeline</label></div>'+cardRecuperar(r,true)+'</div>';
+}
+
+let SAIDA_ID=null;
+function abrirSaida(id){
+  const l=leadDe(id); if(!l) return; SAIDA_ID=id;
+  $('saidaLead').textContent=l.nome+(l.estagio!=='nutricao'?' · sai de '+rotulo(l.estagio):'');
+  $('saidaMotivo').innerHTML='<option value="">— escolhe —</option>'+Object.entries(MOTIVOS_SAIDA).map(([k,m])=>
+    '<option value="'+k+'"'+(l.motivo_saida===k?' selected':'')+'>'+esc(m.n)+(m.dias===null?' (saída definitiva)':'')+'</option>').join('');
+  $('saidaData').value=l.data_dita?String(l.data_dita).slice(0,10):'';
+  $('saidaNota').value=l.motivo_livre||'';
+  openM('mSaida');
+}
+async function confirmarSaida(){
+  const l=leadDe(SAIDA_ID); if(!l||OCUPADO) return;
+  const motivo=$('saidaMotivo').value; if(!motivo){ toast('Escolhe o motivo.'); return; }
+  const m=MOTIVOS_SAIDA[motivo], nota=$('saidaNota').value.trim(), jaFora=l.estagio==='nutricao';
+  const payload={acao:'sair_pipeline',lead_id:l.id,
+    fase_origem:jaFora?(FASE_DE_OPCAO[l.fase_origem]||l.fase_origem||null):l.estagio,
+    motivo_saida:motivo, motivo_livre:nota, data_dita:$('saidaData').value||null,
+    desfecho_proposto:m.dias===null?'definitiva':'espera',
+    // Completar o motivo de quem já estava fora não mexe na data de saída.
+    data_saida:(jaFora&&l.data_saida)?String(l.data_saida).slice(0,10):isoLocal(new Date()),
+    nota:'Saiu do pipeline: '+m.n+(nota?' — '+nota:'')};
+  OCUPADO=true; net('busy');
+  try{
+    await apiEditar(payload); closeM('mSaida');
+    toast(jaFora?'Motivo guardado':l.nome+' saiu do pipeline','ok');
+    await refresh(); if(LEAD_ABERTA===l.id) abrirLead(l.id);
+  }catch(e){ toast(e.message,'err'); net('off'); }
+  finally{ OCUPADO=false; }
+}
+
+let REACT_ID=null;
+function abrirReactivar(id){
+  const l=leadDe(id); if(!l) return; REACT_ID=id;
+  const origem=FASE_DE_OPCAO[l.fase_origem]||l.fase_origem||'lead';
+  const est=(S.estagios.length?S.estagios:ESTAGIOS_FALLBACK).filter(e=>e!=='nutricao');
+  $('reactLead').textContent=l.nome+(l.fase_origem?' · estava em '+rotulo(origem):'');
+  $('reactEstagio').innerHTML=est.map(e=>'<option value="'+esc(e)+'"'+(e===origem?' selected':'')+'>'+esc(rotulo(e))+'</option>').join('');
+  openM('mReactivar');
+}
+function confirmarReactivar(){ reactivar(REACT_ID,$('reactEstagio').value); }
+async function reactivar(id,estagio){
+  const l=leadDe(id); if(!l||OCUPADO) return;
+  const r=foraDoPipeline().find(x=>x.l.id===id);
+  if(r&&r.perdida){ toast(r.definitiva?'Saída definitiva — não se reactiva.':'Passaram os 6 meses — já não se reactiva.','err'); return; }
+  const m=MOTIVOS_SAIDA[l.motivo_saida];
+  OCUPADO=true; net('busy');
+  try{
+    await apiEditar({acao:'reactivar_lead',lead_id:id,estagio,
+      nota:'Reactivada para '+rotulo(estagio)+(m?' (tinha saído: '+m.n+')':'')});
+    closeM('mReactivar'); toast(l.nome+' voltou ao pipeline','ok');
+    await refresh(); if(LEAD_ABERTA===id) abrirLead(id);
+  }catch(e){ toast(e.message,'err'); net('off'); }
+  finally{ OCUPADO=false; }
 }
 
 /* ---------- 9. DEFINIÇÕES ---------- */

@@ -274,6 +274,54 @@
               },
               "renameOutput": true,
               "outputKey": "registar_correcao"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ea69d9ef-9079-59e8-bc90-5f8035ecadb2",
+                    "leftValue": "={{ $json.body.acao }}",
+                    "rightValue": "sair_pipeline",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "sair_pipeline"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "6d5fd09c-bb70-5980-866c-d50ba8f39f4a",
+                    "leftValue": "={{ $json.body.acao }}",
+                    "rightValue": "reactivar_lead",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reactivar_lead"
             }
           ]
         },
@@ -2966,6 +3014,90 @@
           "name": "Airtable Personal Access Token account"
         }
       }
+    },
+    {
+      "parameters": {
+        "curlImport": "",
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/appIdD2RG5S0lWvfV/tblO1ODpXI5GInKGn/{{ $json.body.lead_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "provideSslCertificates": false,
+        "sendQuery": false,
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { estagio: 'nutricao', Status: 'em_triagem', fase_origem: ({ lead: 'leads', aguarda_documentos: 'aguarda documentos' })[$json.body.fase_origem] || $json.body.fase_origem || null, motivo_saida: $json.body.motivo_saida, motivo_livre: $json.body.motivo_livre || '', desfecho_proposto: $json.body.desfecho_proposto || 'indefinido', data_dita: $json.body.data_dita || null, data_saida: $json.body.data_saida, ultima_nota: $json.body.nota || '' }, typecast: true }) }}",
+        "options": {},
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        944,
+        200
+      ],
+      "id": "6d64d395-8b2e-508b-be82-e5dfb40fd38b",
+      "name": "Sair do Pipeline",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "notes": "Terminal: tirar a lead do pipeline (estágio nutricao) com motivo, fase de origem e data de saída — a data conta os 6 meses do separador Recuperar."
+    },
+    {
+      "parameters": {
+        "curlImport": "",
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/appIdD2RG5S0lWvfV/tblO1ODpXI5GInKGn/{{ $json.body.lead_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "provideSslCertificates": false,
+        "sendQuery": false,
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { estagio: $json.body.estagio, Status: 'ativa', ultima_nota: $json.body.nota || '' }, typecast: true }) }}",
+        "options": {},
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        944,
+        360
+      ],
+      "id": "c9b62a37-381c-556e-b304-2b582a7bde1d",
+      "name": "Reactivar Lead",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "notes": "Terminal: devolver ao pipeline uma lead em nutricao (até 6 meses). Mantém motivo e datas de saída como histórico."
     }
   ],
   "connections": {
@@ -3048,6 +3180,20 @@
         [
           {
             "node": "Achar Evento (Correcao)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sair do Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reactivar Lead",
             "type": "main",
             "index": 0
           }
@@ -3176,6 +3322,28 @@
       ]
     },
     "Registar Correcao": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sair do Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reactivar Lead": {
       "main": [
         [
           {
