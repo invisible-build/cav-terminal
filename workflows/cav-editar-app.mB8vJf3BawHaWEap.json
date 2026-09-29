@@ -708,8 +708,8 @@
               "type": "options",
               "options": [
                 {
-                  "name": "tansferencia",
-                  "value": "tansferencia"
+                  "name": "transferencia",
+                  "value": "transferencia"
                 },
                 {
                   "name": "aquisicao",
@@ -1230,8 +1230,8 @@
               "type": "options",
               "options": [
                 {
-                  "name": "tansferencia",
-                  "value": "tansferencia"
+                  "name": "transferencia",
+                  "value": "transferencia"
                 },
                 {
                   "name": "aquisicao",
@@ -2183,8 +2183,8 @@
               "type": "options",
               "options": [
                 {
-                  "name": "tansferencia",
-                  "value": "tansferencia"
+                  "name": "transferencia",
+                  "value": "transferencia"
                 },
                 {
                   "name": "aquisicao",
@@ -2705,8 +2705,8 @@
               "type": "options",
               "options": [
                 {
-                  "name": "tansferencia",
-                  "value": "tansferencia"
+                  "name": "transferencia",
+                  "value": "transferencia"
                 },
                 {
                   "name": "aquisicao",
