@@ -322,6 +322,30 @@
               },
               "renameOutput": true,
               "outputKey": "reactivar_lead"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "9804cd21-a449-507e-b9f6-cc44197d4b00",
+                    "leftValue": "={{ $json.body.acao }}",
+                    "rightValue": "resolver_pendencia",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "resolver_pendencia"
             }
           ]
         },
@@ -3098,6 +3122,48 @@
         }
       },
       "notes": "Terminal: devolver ao pipeline uma lead em nutricao (até 6 meses). Mantém motivo e datas de saída como histórico."
+    },
+    {
+      "parameters": {
+        "curlImport": "",
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/appIdD2RG5S0lWvfV/Pendencias/{{ $json.body.pendencia_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "provideSslCertificates": false,
+        "sendQuery": false,
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { estado: 'resolvida' }, typecast: true }) }}",
+        "options": {},
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        944,
+        520
+      ],
+      "id": "b474e74c-e434-5130-9735-53537402eba2",
+      "name": "Resolver Pendência",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "notes": "Terminal: botão ✓ numa pendência. Até 30/09 nada fechava pendências (67 todas abertas)."
     }
   ],
   "connections": {
@@ -3194,6 +3260,13 @@
         [
           {
             "node": "Reactivar Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resolver Pendência",
             "type": "main",
             "index": 0
           }
@@ -3344,6 +3417,17 @@
       ]
     },
     "Reactivar Lead": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver Pendência": {
       "main": [
         [
           {

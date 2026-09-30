@@ -178,6 +178,8 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
 /* ---------- SHEET (confirmação) ---------- */
 .scrim{position:fixed;inset:0;background:rgba(4,5,8,.72);backdrop-filter:blur(3px);z-index:50;display:none}
 .scrim.on{display:block}
+.pend-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(68px + var(--safe-b));z-index:55;background:var(--orange2);color:#000;border:none;border-radius:99px;padding:10px 16px;font-size:12.5px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.4);cursor:pointer;max-width:calc(100% - 32px)}
+@media(min-width:860px){.pend-bar{bottom:24px}}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--s1);border-top:1px solid var(--border2);border-radius:16px 16px 0 0;padding:20px 18px calc(20px + var(--safe-b));transform:translateY(102%);transition:transform .26s cubic-bezier(.32,.72,0,1);max-height:86dvh;overflow-y:auto}
 .sheet.on{transform:translateY(0)}
 @media(min-width:700px){.sheet{left:50%;right:auto;bottom:22px;width:520px;transform:translate(-50%,140%);border-radius:14px;border:1px solid var(--border2)}.sheet.on{transform:translate(-50%,0)}}
@@ -429,7 +431,8 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
 </div>
 
 <!-- ====================== SHEET CONFIRMAÇÃO ====================== -->
-<div class="scrim" id="scrim" onclick="fecharSheet()"></div>
+<div class="scrim" id="scrim" onclick="minimizarSheet()"></div>
+<button class="pend-bar" id="pendBar" hidden onclick="reabrirPend()">⏳ Tens uma confirmação por responder · <b>Abrir</b></button>
 <div class="sheet" id="sheet">
   <div class="grab"></div>
   <h3 id="shQ"></h3>
@@ -499,9 +502,9 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
       <div class="help">Usado pelo botão 📎 nas propostas de banco: guarda o PDF da FIN e a IA faz o resumo.</div>
     </div>
     <div class="fld">
-      <label>Chave da app (opcional)</label>
-      <input id="cfgKey" placeholder="deixa vazio se não usares">
-      <div class="help">Enviada no cabeçalho <span style="font-family:var(--mono)">x-cav-key</span>. Serve para o n8n recusar pedidos de fora.</div>
+      <label>Chave da app</label>
+      <input id="cfgKey" type="password" autocomplete="off" placeholder="cola aqui a chave que o César te deu">
+      <div class="help">Obrigatória: sem ela o n8n recusa os pedidos. Fica guardada só neste aparelho.</div>
     </div>
     <div class="m-act">
       <button class="cancel" onclick="closeM('mCfg')">Fechar</button>
@@ -703,6 +706,9 @@ let CFG={...CFG_DEF};
 try{const s=localStorage.getItem(CFG_KEY); if(s)CFG={...CFG_DEF,...JSON.parse(s)};}catch(e){}
 const url=p=>CFG.base.replace(/\/+$/,'')+'/webhook/'+p.replace(/^\/+/,'');
 const headers=()=>{const h={'Content-Type':'application/json'}; if(CFG.key)h['x-cav-key']=CFG.key; return h;};
+// O n8n exige a chave da app (Definições). Sem ela, ou errada, responde 401/403.
+const SEM_CHAVE='Falta a chave da app, ou está errada. Abre as Definições (⚙) e cola a chave que o César te deu.';
+const semChave=st=>st===401||st===403;
 
 /* ---------- 2. HELPERS ---------- */
 const $=id=>document.getElementById(id);
@@ -729,6 +735,7 @@ function toast(msg,tipo){ const t=$('toast'); t.textContent=msg; t.className='to
 
 /* ---------- 3. ESTADO ---------- */
 let S={comerciais:[],leads:[],tarefas:[],agenda:[],pendencias:[],historico:[],estagios:[]};
+let ULTIMO_ERRO=null;
 let EU=null;                 // comercial autenticado
 let TAB='hoje';
 let PEND=null;               // bilhete à espera de confirmação
@@ -796,6 +803,7 @@ const propostasBancoDe=l=>Array.isArray(l.propostas_banco)?l.propostas_banco:[];
 async function apiDados(){
   const r=await fetch(url(CFG.dados),{method:'POST',headers:headers(),
     body:JSON.stringify({comercial_id:EU?EU.id:null})});
+  if(semChave(r.status)) throw new Error(SEM_CHAVE);
   if(!r.ok) throw new Error('Leitura falhou ('+r.status+')');
   return await r.json();
 }
@@ -803,6 +811,7 @@ async function apiFalar(payload){
   const r=await fetch(url(CFG.inbound),{method:'POST',headers:headers(),body:JSON.stringify(payload)});
   const txt=await r.text();
   let j=null; try{ j=JSON.parse(txt); }catch(e){}
+  if(semChave(r.status)) throw new Error(SEM_CHAVE);
   if(!r.ok) throw new Error((j&&(j.message||j.erro))||('Erro '+r.status+': '+txt.slice(0,140)));
   return j||{};
 }
@@ -813,11 +822,13 @@ async function apiEditar(payload){
     body:JSON.stringify({comercial_id:EU?EU.id:null, ...payload})});
   const txt=await r.text();
   let j=null; try{ j=JSON.parse(txt); }catch(e){}
+  if(semChave(r.status)) throw new Error(SEM_CHAVE);
   if(!r.ok||(j&&j.ok===false)) throw new Error((j&&(j.message||j.erro))||('Erro '+r.status+': '+txt.slice(0,140)));
   return j||{};
 }
 async function apiExportar(){
-  const r=await fetch(url(CFG.exportar));
+  const r=await fetch(url(CFG.exportar),{headers:headers()});
+  if(semChave(r.status)) throw new Error(SEM_CHAVE);
   if(!r.ok) throw new Error('Exportação falhou ('+r.status+')');
   return await r.json();
 }
@@ -826,6 +837,7 @@ async function apiImportar(payload){
     body:JSON.stringify({comercial_id:EU?EU.id:null, ...payload})});
   const txt=await r.text();
   let j=null; try{ j=JSON.parse(txt); }catch(e){}
+  if(semChave(r.status)) throw new Error(SEM_CHAVE);
   if(!r.ok||(j&&j.ok===false)) throw new Error((j&&(j.erro||j.message))||('Erro '+r.status+': '+txt.slice(0,140)));
   return j||{};
 }
@@ -837,6 +849,7 @@ async function apiFin(payload){
     body:JSON.stringify({comercial_id:EU?EU.id:null, ...payload})});
   const txt=await r.text();
   let j=null; try{ j=JSON.parse(txt); }catch(e){}
+  if(semChave(r.status)) throw new Error(SEM_CHAVE);
   if(!r.ok||(j&&j.ok===false)) throw new Error((j&&(j.erro||j.message))||('Erro '+r.status+': '+txt.slice(0,140)));
   return j||{};
 }
@@ -857,7 +870,7 @@ async function refresh(aviso){
     net('on'); render();
     if(aviso) toast('Actualizado','ok');
     return true;
-  }catch(e){ net('off'); if(aviso) toast(e.message,'err'); return false; }
+  }catch(e){ ULTIMO_ERRO=e.message; net('off'); if(aviso) toast(e.message,'err'); return false; }
 }
 
 /* ---------- 5. VOZ ----------
@@ -987,7 +1000,7 @@ async function responder(valor){
 function tratarResposta(r){
   net('on');
   const estado=r.estado||r.status;
-  if(estado==='pergunta'){ PEND=r; abrirSheet(r); return; }
+  if(estado==='pergunta'){ PEND=r; guardarPend(r); abrirSheet(r); return; }
   fecharSheet();
   if(estado==='comprometido'){ toast(r.resumo||'Registado ✓','ok'); refresh(); return; }
   if(estado==='sem_acao'){ toast(r.mensagem||'Não havia nada para registar.'); return; }
@@ -996,6 +1009,7 @@ function tratarResposta(r){
 }
 
 function abrirSheet(r){
+  const pb=$('pendBar'); if(pb) pb.hidden=true;
   $('shQ').textContent=r.pergunta||'Confirmas?';
   $('shSaid').textContent=r.transcricao?('“'+r.transcricao+'”'):'';
   $('shSaid').style.display=r.transcricao?'block':'none';
@@ -1013,7 +1027,18 @@ function abrirSheet(r){
   $('shOpts').style.display='flex'; $('shCorrigir').style.display='none';
   $('scrim').classList.add('on'); $('sheet').classList.add('on');
 }
-function fecharSheet(){ PEND=null; $('scrim').classList.remove('on'); $('sheet').classList.remove('on'); }
+function fecharSheet(){ PEND=null; esquecerPend(); $('scrim').classList.remove('on'); $('sheet').classList.remove('on'); mostrarPendBar(); }
+/* Um cartão por responder não se perde: tocar fora do cartão (ou Esc) só o esconde,
+   fica guardado neste aparelho e a barra de baixo reabre-o — antes descartava-se com
+   um toque ao lado. Só "Agora não" ou uma resposta o fecham de vez. Guarda 48 h. */
+const PEND_KEY=()=>'cav-pend-'+(EU?EU.id:'');
+function guardarPend(r){ try{ localStorage.setItem(PEND_KEY(),JSON.stringify({em:Date.now(),r})); }catch(e){} }
+function esquecerPend(){ try{ localStorage.removeItem(PEND_KEY()); }catch(e){} }
+function lerPend(){ try{ const v=JSON.parse(localStorage.getItem(PEND_KEY())||'null'); return v&&Date.now()-v.em<48*3600e3?v.r:null; }catch(e){ return null; } }
+function minimizarSheet(){ $('scrim').classList.remove('on'); $('sheet').classList.remove('on'); mostrarPendBar(); }
+function mostrarPendBar(){ const b=$('pendBar'); if(!b) return; if(!PEND&&EU){ const r=lerPend(); if(r) PEND=r; }
+  b.hidden=!(PEND&&!$('sheet').classList.contains('on')); }
+function reabrirPend(){ if(PEND) abrirSheet(PEND); }
 
 /* Corrigir: em vez de só descartar um "não", pede-se uma explicação curta e
    guarda-se junto da transcrição e da interpretação errada (tabela EVENTOS) —
@@ -1086,7 +1111,7 @@ function render(){
   const whoHtml='<span class="av" style="background:'+corDe(EU.nome)+'">'+esc(iniciais(EU.nome))+'</span>'+esc(EU.nome.split(' ')[0]);
   const wc=$('whoChip'), wr=$('whoChipR');
   if(wc)wc.innerHTML=whoHtml; if(wr)wr.innerHTML=whoHtml;
-  renderNav();
+  renderNav(); mostrarPendBar();
   ({voz:()=>{},hoje:rHoje,pipe:rPipe,tarefas:rTarefas,agenda:rAgenda,recuperar:rRecuperar,equipa:rEquipa}[TAB]||rHoje)();
 }
 
@@ -1158,7 +1183,7 @@ function cardAgendaDia(a){
 }
 function cardPend(p){
   const atras=p.data_prometida&&dias(p.data_prometida)>0;
-  return '<div class="task'+(atras?' urg':'')+'"><span class="bx" style="border:none;font-size:14px;color:var(--orange2)">⏳</span>'
+  return '<div class="task'+(atras?' urg':'')+'"><button class="bx" title="Marcar resolvida" onclick="resolverPendencia(\''+esc(p.id)+'\')">✓</button>'
     +'<span class="tx">'+esc(p.descricao||'')
     +'<div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap">'
     +(p.lead_id?'<span class="chip b">'+esc(nomeLead(p.lead_id))+'</span>':'')
@@ -1485,6 +1510,17 @@ async function apagarEvento(id){
 }
 
 /* ---------- 7d. TAREFAS — check directo ---------- */
+/* Pendências (à espera do cliente, banco ou terceiro): até aqui nada as fechava — as
+   67 existentes a 30/09 estavam todas "aberta". O ✓ marca-as "resolvida". */
+async function resolverPendencia(id){
+  if(OCUPADO) return;
+  const p=S.pendencias.find(x=>x.id===id); if(!p) return;
+  p.estado='resolvida'; render(); if(LEAD_ABERTA) abrirLead(LEAD_ABERTA);
+  OCUPADO=true;
+  try{ await apiEditar({acao:'resolver_pendencia',pendencia_id:id}); toast('Pendência resolvida','ok'); await refresh(); }
+  catch(e){ p.estado='aberta'; render(); toast(e.message,'err'); }
+  finally{ OCUPADO=false; }
+}
 async function toggleTarefa(id,concluir){
   if(OCUPADO) return;
   const t=S.tarefas.find(x=>x.id===id); if(!t) return;
@@ -2217,7 +2253,7 @@ async function arrancar(){
   $('whoList').innerHTML='';
   const ok=await refresh();
   if(!ok){
-    $('loginSub').textContent='Não consegui falar com o n8n. Confirma as definições.';
+    $('loginSub').textContent=ULTIMO_ERRO===SEM_CHAVE?SEM_CHAVE:'Não consegui falar com o n8n. Confirma as definições.';
     return;
   }
   let guardado=null; try{guardado=localStorage.getItem(EU_KEY);}catch(e){}
@@ -2227,7 +2263,7 @@ async function arrancar(){
 }
 
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ fecharSheet(); fecharPainel(); closeM('mCfg'); closeM('mEvento'); closeM('mNovaLead'); }
+  if(e.key==='Escape'){ minimizarSheet(); fecharPainel(); closeM('mCfg'); closeM('mEvento'); closeM('mNovaLead'); }
 });
 
 /* No telemóvel, o ecrã de arranque é o da voz — a interação principal do

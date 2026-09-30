@@ -1611,3 +1611,48 @@ Não foram corrigidos; ficam para decisão.
 | 25/09 | `a4d8316`, `ef39ed8`, `d9cf7e3`, `01130d8`, `ccb2b1b`, `f479320` | Checklist parte do modelo; FIN por banco; criar Ler FIN e ICS; empurrar = publicar; cores com significado |
 | 28/09 | `0dcba4f`, `30671c2`, `eb93801`, `6d81552`, `1cd1766` | Sync; email no Terminal; revisão das correcções; prompt v2.13 |
 | 29/09 | `60e032f`, `a7b2a86`, `5502924`, `ee0ab72`, `5b7ac70`, `56c894d`, `e903bb4`, `dae282b`, `3c29f2b` | Token na rotina; lead nova com valor e email (v2.14); resposta inválida da IA (v2.15); "arroba" → @; checklist em dois grupos (v2.16); Recuperar (v2.17); tirar do pipeline no Terminal; `tansferencia` |
+
+---
+
+## 13. Análise de ponta a ponta — 30/09/2026
+
+Revisão da secção 9 contra os dados reais (Airtable, só leitura) e as 307 execuções do Inbound desde 16/09.
+
+### 13.1 Confirmado nos dados
+
+| Achado | Evidência | Estado |
+|---|---|---|
+| `cav-exportar` sem autenticação devolve todas as leads e o histórico | HTTP 200 sem chave: 29 leads, 301 registos | chave da app preparada (ver 13.2) |
+| Todos os webhooks do Terminal aceitam pedidos sem chave; `cav-dados` sem `comercial_id` devolve tudo | chamada de teste a 29/09 | chave da app preparada |
+| `ultimo_contacto` não existe no Airtable e nada o grava | campo inexistente; 0 de 31 leads | Committer passa a gravá-lo em `contacto`, `lead_nova`, `proposta`; falta criar o campo |
+| Pendências nunca fecham | 67 de 67 em `aberta` | botão ✓ no Terminal + acção `resolver_pendencia` |
+| Cartões de confirmação perdidos | 52 eventos em `pendente`; tocar fora do cartão descartava-o | tocar fora só esconde; cartão guardado 48 h no aparelho; barra para reabrir |
+| Saída por voz não gravava motivo, fase nem data | 0 de 7 saídas com `subtipo` | corrigido e publicado (adfee85) |
+| Eventos em `recebido` | 59, quase todos antes de 17/09 (21 a 11/09) | histórico; falta a rotina de limpeza (P3) |
+| Quota Gemini | 31–36 chamadas/dia a 22, 24 e 29/09 com só 8 `falha IA` | o CLAUDE.md (20/dia) está desactualizado — confirmar o plano |
+| Erros do Inbound | 11 em 307 execuções (3,6%) | baixo |
+| `dados_lead` com valor em texto | execução 1628 (24/09): "Valor cannot accept the provided value" | por corrigir |
+| Workflows activos que não deviam | `CAV - Bloco 0 (Teste)` e `CAV · App (estático)` | o César desactiva no n8n |
+
+### 13.2 Chave da app
+
+O Terminal já envia `x-cav-key` (Definições) e o n8n aceita esse cabeçalho no CORS. Falta:
+1. criar no n8n uma credencial *Header Auth* (nome do cabeçalho `x-cav-key`);
+2. ligar os webhooks `cav-dados`, `cav-editar`, `cav-inbound`, `cav-ler-fin`, `cav-exportar`,
+   `cav-importar` a essa credencial (`authentication: headerAuth`);
+3. cada comercial colar a chave nas Definições do Terminal.
+
+Ficam de fora, de propósito: `cav-agenda-ics` (as apps de calendário não enviam cabeçalhos; protege-o
+o id do comercial) e `cav-secretaria-prompt-gemini` (sem dados de clientes).
+
+### 13.3 Lacunas de produto (sem correcção ainda)
+
+- Leads duplicadas: a criação não verifica nome/telefone existentes.
+- Reactivação por voz.
+- Alcunhas: `alcunha` no Airtable vs `alcunhas` no Montar Payload; nenhuma lead tem alcunha.
+- Mais de 100 leads activas: `Get CANDIDATOS` não pagina.
+- Sem alertas de falha: um erro só se descobre por queixa.
+- FIN nunca testada com um PDF real.
+- Agenda: estados `confirmado`/`concluído` sugeridos pelo Terminal não existem no Airtable;
+  `apagar_evento` apaga o registo.
+- Notas manuais não entram no Histórico.
