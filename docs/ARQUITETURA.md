@@ -1656,3 +1656,19 @@ o id do comercial) e `cav-secretaria-prompt-gemini` (sem dados de clientes).
 - Agenda: estados `confirmado`/`concluído` sugeridos pelo Terminal não existem no Airtable;
   `apagar_evento` apaga o registo.
 - Notas manuais não entram no Histórico.
+
+### 13.4 Tratado a 01/10/2026
+
+| Lacuna (13.1/13.3) | O que mudou |
+|---|---|
+| Chave da app | Ligada nos 6 webhooks do Terminal (1ef0128) |
+| Leads duplicadas | Aviso na pergunta (voz) e no formulário "Nova lead" (36d42fa) |
+| Notas manuais fora do Histórico | Notas, saídas e reactivações do Terminal criam linha no Histórico (`Registar no Histórico`, Editar) |
+| Estados da agenda / apagar evento | O Terminal só oferece `agendado`, `realizado`, `cancelado`; `apagar_evento` passa a marcar `cancelado` (o nó de apagar foi removido) |
+| Alcunhas | Campo no painel da lead; o Montar Payload lê `alcunha`; o Dados devolve-o |
+| Reactivação por voz | Leads em `nutricao` recuperáveis (≤ 6 meses, motivo não definitivo) vão para `CANDIDATOS` com `fase_origem`; regra 33 do prompt (v2.18); o Committer repõe `Status: ativa` |
+| Valor em texto | `dados_lead.valor` aceita "300 mil", "300.000 €", "1,2 milhões"; o que não é número não é escrito |
+| Documentação desactualizada | CLAUDE.md, README e INDICE.json alinhados com o que existe |
+
+Ainda por fazer: paginação acima de 100 leads (`Get CANDIDATOS`, `Get TAREFAS`, `Get AGENDA`), alertas
+de falha (falta escolher o canal), teste da FIN com um PDF real, rotina para eventos parados.

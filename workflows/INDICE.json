@@ -1,19 +1,5 @@
 [
   {
-    "ficheiro": "cav-bloco-0-teste.TUvBh73QReUK8TAA.json",
-    "id": "TUvBh73QReUK8TAA",
-    "nome": "CAV - Bloco 0 (Teste)",
-    "activo": true,
-    "nos": 6
-  },
-  {
-    "ficheiro": "cav-interpretar-app.gq4sGSRvqqu4g9us.json",
-    "id": "gq4sGSRvqqu4g9us",
-    "nome": "CAV - Interpretar (App)",
-    "activo": false,
-    "nos": 0
-  },
-  {
     "ficheiro": "cav-a-entrada-interpretacao-secretaria.rtO4v6gZnXDmYjFZ.json",
     "id": "rtO4v6gZnXDmYjFZ",
     "nome": "CAV · A · Entrada + Interpretação (Secretária)",
@@ -21,25 +7,18 @@
     "nos": 12
   },
   {
-    "ficheiro": "cav-dados-app.GkeYwd5Aeo8pNa4d.json",
-    "id": "GkeYwd5Aeo8pNa4d",
-    "nome": "CAV · Dados (App)",
+    "ficheiro": "cav-agenda-ics.bfqFPe5fuxzbJX6t.json",
+    "id": "bfqFPe5fuxzbJX6t",
+    "nome": "CAV · Agenda (ICS)",
     "activo": true,
-    "nos": 10
+    "nos": 5
   },
   {
     "ficheiro": "cav-app-estatico.c2lX60t7QMxeEHe4.json",
     "id": "c2lX60t7QMxeEHe4",
     "nome": "CAV · App (estático)",
-    "activo": true,
-    "nos": 2
-  },
-  {
-    "ficheiro": "cav-teste-gemini-comparacao.mKpXSJCMVcuWRCUj.json",
-    "id": "mKpXSJCMVcuWRCUj",
-    "nome": "CAV — TESTE Gemini (comparação)",
     "activo": false,
-    "nos": 9
+    "nos": 2
   },
   {
     "ficheiro": "cav-b-confirm-first.8TiVaThPgWbcLj2q.json",
@@ -49,11 +28,53 @@
     "nos": 12
   },
   {
-    "ficheiro": "cav-workflow-a-inbound-write-path.q9usAIFsJm1MDQLb.json",
-    "id": "q9usAIFsJm1MDQLb",
-    "nome": "CAV — Workflow A · Inbound (write path)",
+    "ficheiro": "cav-bloco-0-teste.TUvBh73QReUK8TAA.json",
+    "id": "TUvBh73QReUK8TAA",
+    "nome": "CAV - Bloco 0 (Teste)",
     "activo": false,
-    "nos": 27
+    "nos": 6
+  },
+  {
+    "ficheiro": "cav-committer.7DoKXQGDJH4yivLK.json",
+    "id": "7DoKXQGDJH4yivLK",
+    "nome": "CAV - Committer",
+    "activo": true,
+    "nos": 21
+  },
+  {
+    "ficheiro": "cav-dados-app.GkeYwd5Aeo8pNa4d.json",
+    "id": "GkeYwd5Aeo8pNa4d",
+    "nome": "CAV · Dados (App)",
+    "activo": true,
+    "nos": 10
+  },
+  {
+    "ficheiro": "cav-editar-app.mB8vJf3BawHaWEap.json",
+    "id": "mB8vJf3BawHaWEap",
+    "nome": "CAV · Editar (App)",
+    "activo": true,
+    "nos": 22
+  },
+  {
+    "ficheiro": "cav-importar-exportar.VPCgg9cxRe46MLNs.json",
+    "id": "VPCgg9cxRe46MLNs",
+    "nome": "CAV · Importar/Exportar",
+    "activo": true,
+    "nos": 21
+  },
+  {
+    "ficheiro": "cav-interpretar-app.gq4sGSRvqqu4g9us.json",
+    "id": "gq4sGSRvqqu4g9us",
+    "nome": "CAV - Interpretar (App)",
+    "activo": false,
+    "nos": 0
+  },
+  {
+    "ficheiro": "cav-ler-fin.etno1VQ31Bj7nMi2.json",
+    "id": "etno1VQ31Bj7nMi2",
+    "nome": "CAV · Ler FIN",
+    "activo": true,
+    "nos": 12
   },
   {
     "ficheiro": "cav-secretaria-prompt-estatico.FjelO9bMQh1Mr21I.json",
@@ -63,45 +84,24 @@
     "nos": 4
   },
   {
-    "ficheiro": "cav-committer.7DoKXQGDJH4yivLK.json",
-    "id": "7DoKXQGDJH4yivLK",
-    "nome": "CAV - Committer",
-    "activo": true,
-    "nos": 17
+    "ficheiro": "cav-teste-gemini-comparacao.mKpXSJCMVcuWRCUj.json",
+    "id": "mKpXSJCMVcuWRCUj",
+    "nome": "CAV — TESTE Gemini (comparação)",
+    "activo": false,
+    "nos": 9
   },
   {
     "ficheiro": "cav-workflow-a-inbound-fix-pendente-rascunho.bSTGP7PErDam8WPE.json",
     "id": "bSTGP7PErDam8WPE",
     "nome": "CAV — Workflow A · Inbound (FIX pendente - rascunho)",
     "activo": true,
-    "nos": 32
+    "nos": 36
   },
   {
-    "ficheiro": "cav-editar-app.mB8vJf3BawHaWEap.json",
-    "id": "mB8vJf3BawHaWEap",
-    "nome": "CAV · Editar (App)",
-    "activo": true,
-    "nos": 11
-  },
-  {
-    "ficheiro": "cav-importar-exportar.VPCgg9cxRe46MLNs.json",
-    "id": "VPCgg9cxRe46MLNs",
-    "nome": "CAV · Importar/Exportar",
-    "activo": true,
-    "nos": 0
-  },
-  {
-    "ficheiro": "cav-ler-fin.etno1VQ31Bj7nMi2.json",
-    "id": "etno1VQ31Bj7nMi2",
-    "nome": "CAV · Ler FIN",
+    "ficheiro": "cav-workflow-a-inbound-write-path.q9usAIFsJm1MDQLb.json",
+    "id": "q9usAIFsJm1MDQLb",
+    "nome": "CAV — Workflow A · Inbound (write path)",
     "activo": false,
-    "nos": 12
-  },
-  {
-    "ficheiro": "cav-agenda-ics.bfqFPe5fuxzbJX6t.json",
-    "id": "bfqFPe5fuxzbJX6t",
-    "nome": "CAV · Agenda (ICS)",
-    "activo": false,
-    "nos": 5
+    "nos": 27
   }
 ]

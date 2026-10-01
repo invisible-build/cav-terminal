@@ -13,7 +13,7 @@ Três peças:
 | peça | onde vive | neste repositório |
 |---|---|---|
 | workflows | n8n (Hostinger) | `workflows/` |
-| prompt da Secretária | dentro de um workflow do n8n | `prompts/` |
+| prompt da Secretária | dentro de um workflow do n8n | `workflows/cav-secretaria-prompt-estatico.*.json`, nó "Responder (Gemini v3.0)" |
 | Terminal | GitHub Pages, servido a partir deste repositório | `index.html` |
 | dados | Airtable `appIdD2RG5S0lWvfV` | fora daqui, de propósito |
 
@@ -56,7 +56,7 @@ implícita e custam dez vezes menos. Isso põe a chamada a $0,0086. **Sem cache
 são $0,045** — cinco vezes mais.
 
 A cache implícita só funciona quando o **início do prompt é idêntico** entre
-chamadas. Logo: alterações ao topo de `prompts/secretaria.md` mudam o custo de
+chamadas. Logo: alterações ao topo do prompt (o texto do nó "Responder (Gemini v3.0)") mudam o custo de
 todo o sistema. Acrescentar no fim é barato; mexer no princípio não é. Quem
 mexer no topo tem de dizer porquê no commit.
 

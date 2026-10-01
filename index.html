@@ -614,8 +614,11 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
     </div>
     <div class="fld">
       <label>Estado</label>
-      <input id="evEstado" list="dlEstados" placeholder="agendado">
-      <datalist id="dlEstados"><option value="agendado"><option value="confirmado"><option value="concluído"><option value="cancelado"></datalist>
+      <select id="evEstado">
+        <option value="agendado">Agendado</option>
+        <option value="realizado">Realizado</option>
+        <option value="cancelado">Cancelado</option>
+      </select>
     </div>
     <div class="m-act">
       <button class="cancel" onclick="closeM('mEvento')">Cancelar</button>
@@ -1186,7 +1189,7 @@ function cardAgendaDia(a){
     +'<span class="chip y">'+dataHora(a.quando)+'</span>'
     +(a.estado?'<span class="chip">'+esc(a.estado)+'</span>':'')
     +'<button class="cal-resched" onclick="abrirEditarEvento(\''+a.id+'\')">✎ Editar</button>'
-    +'<button class="cal-resched" style="color:var(--red2);background:rgba(196,40,40,.14)" onclick="apagarEvento(\''+a.id+'\')">Apagar</button>'
+    +'<button class="cal-resched" style="color:var(--red2);background:rgba(196,40,40,.14)" onclick="apagarEvento(\''+a.id+'\')">Cancelar</button>'
     +'</div></span></div>';
 }
 function cardPend(p){
@@ -1284,7 +1287,7 @@ async function moverLeadEstagio(item,novoEstagio){
   item.estagio=novoEstagio; render();
   OCUPADO=true; net('busy'); toast('A mover…');
   // O Editar grava todos estes campos: o que não seguir aqui ficava vazio no Airtable.
-  const campos={estagio:novoEstagio, valor:item.valor??null, telefone:item.telefone||'', email:item.email||'',
+  const campos={estagio:novoEstagio, valor:item.valor??null, telefone:item.telefone||'', email:item.email||'', alcunha:item.alcunha||'',
     origem_lead:item.origem_lead||'', tipo:item.tipo||null};
   try{
     await apiEditar({acao:'editar_lead',lead_id:item.id,campos});
@@ -1522,7 +1525,7 @@ async function guardarEvento(){
   if(!titulo){ toast('Dá um título ao evento.'); return; }
   if(!dataV){ toast('Escolhe uma data.'); return; }
   const campos={titulo, lead_id:$('evLead').value||null, quando:dataV+'T'+horaV+':00',
-    estado:$('evEstado').value.trim()||'agendado'};
+    estado:$('evEstado').value||'agendado'};
   OCUPADO=true;
   try{
     if(EV_ALVO) await apiEditar({acao:'editar_evento',evento_id:EV_ALVO.id,campos});
@@ -1535,11 +1538,11 @@ async function guardarEvento(){
 }
 async function apagarEvento(id){
   if(OCUPADO) return;
-  if(!confirm('Apagar este evento da agenda?')) return;
+  if(!confirm('Cancelar este evento? Sai da agenda, mas fica registado como cancelado.')) return;
   OCUPADO=true;
   try{
     await apiEditar({acao:'apagar_evento',evento_id:id});
-    toast('Evento apagado','ok');
+    toast('Evento cancelado','ok');
     await refresh();
   }catch(e){ toast(e.message,'err'); }
   finally{ OCUPADO=false; }
@@ -1620,6 +1623,8 @@ function abrirLead(id){
     +'<div class="fld" style="margin-bottom:9px"><label>Estágio</label><select id="edEstagio">'+estagiosOpts+'</select></div>'
     +'<div class="fld" style="margin-bottom:9px"><label>Valor da proposta (€)</label><input id="edValor" type="number" step="1" min="0" value="'+esc(l.valor||'')+'" placeholder="0"></div>'
     +'<div class="fld" style="margin-bottom:9px"><label>Telefone</label><input id="edTelefone" value="'+esc(l.telefone||'')+'"></div>'
+    +'<div class="fld" style="margin-bottom:9px"><label>Alcunhas</label><input id="edAlcunha" value="'+esc(l.alcunha||'')+'" placeholder="Ex.: o Zé, o da Amadora">'
+      +'<div class="help">Outros nomes por que falas desta lead, separados por vírgula. Ajudam a Secretária a não a confundir com outra.</div></div>'
     +'<div class="fld" style="margin-bottom:9px"><label>Email</label><input id="edEmail" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(l.email||'')+'" placeholder="nome@exemplo.pt">'
       +(l.email?'':'<div class="help" style="color:var(--orange2)">Sem email — não dá para enviar emails a esta lead.</div>')+'</div>'
     +'<div class="fld" style="margin-bottom:9px"><label>Origem da lead</label><input id="edOrigem" list="dlOrigens" value="'+esc(l.origem_lead||'')+'" placeholder="Facebook, Site, Referência…"></div>'
@@ -1709,7 +1714,7 @@ async function guardarNotaDitada(id,txt){
   if(OCUPADO) return;
   OCUPADO=true;
   try{
-    await apiEditar({acao:'nota_manual',lead_id:id,nota:txt});
+    await apiEditar({acao:'nota_manual',lead_id:id,lead_nome:(leadDe(id)||{}).nome||'',nota:txt});
     toast('Nota adicionada','ok');
     await refresh();
     if(LEAD_ABERTA===id) abrirLead(id);
@@ -1730,6 +1735,7 @@ async function guardarLead(id){
     estagio:$('edEstagio').value,
     valor:$('edValor').value!==''?Number($('edValor').value):null,
     telefone:$('edTelefone').value.trim(),
+    alcunha:$('edAlcunha').value.trim(),
     email,
     origem_lead:$('edOrigem').value.trim(),
     tipo:$('edTipo').value||null
@@ -1750,7 +1756,7 @@ async function guardarNota(id){
   if(!txt){ toast('Escreve algo primeiro.'); return; }
   OCUPADO=true;
   try{
-    await apiEditar({acao:'nota_manual',lead_id:id,nota:txt});
+    await apiEditar({acao:'nota_manual',lead_id:id,lead_nome:(leadDe(id)||{}).nome||'',nota:txt});
     toast('Nota adicionada','ok');
     await refresh();
     if(LEAD_ABERTA===id) abrirLead(id);
@@ -2071,7 +2077,7 @@ async function confirmarSaida(){
   const l=leadDe(SAIDA_ID); if(!l||OCUPADO) return;
   const motivo=$('saidaMotivo').value; if(!motivo){ toast('Escolhe o motivo.'); return; }
   const m=MOTIVOS_SAIDA[motivo], nota=$('saidaNota').value.trim(), jaFora=l.estagio==='nutricao';
-  const payload={acao:'sair_pipeline',lead_id:l.id,
+  const payload={acao:'sair_pipeline',lead_id:l.id,lead_nome:l.nome,
     fase_origem:jaFora?(FASE_DE_OPCAO[l.fase_origem]||l.fase_origem||null):l.estagio,
     motivo_saida:motivo, motivo_livre:nota, data_dita:$('saidaData').value||null,
     desfecho_proposto:m.dias===null?'definitiva':'espera',
@@ -2104,7 +2110,7 @@ async function reactivar(id,estagio){
   const m=MOTIVOS_SAIDA[l.motivo_saida];
   OCUPADO=true; net('busy');
   try{
-    await apiEditar({acao:'reactivar_lead',lead_id:id,estagio,
+    await apiEditar({acao:'reactivar_lead',lead_id:id,lead_nome:l.nome,estagio,
       nota:'Reactivada para '+rotulo(estagio)+(m?' (tinha saído: '+m.n+')':'')});
     closeM('mReactivar'); toast(l.nome+' voltou ao pipeline','ok');
     await refresh(); if(LEAD_ABERTA===id) abrirLead(id);

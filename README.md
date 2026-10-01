@@ -5,8 +5,8 @@ precisam de histórico. O Airtable fica de fora — é interface, não código.
 
 ```
 workflows/   os workflows do n8n, um JSON por workflow
-prompts/     o prompt da Secretária e o que mais for enviado ao modelo
-terminal/    a app que os comerciais usam
+index.html   o Terminal, a app que os comerciais usam (GitHub Pages)
+docs/        ARQUITETURA.md — a documentação técnica completa
 scripts/     puxar do n8n, empurrar para o n8n
 ```
 
@@ -61,4 +61,5 @@ browser), editar o ficheiro, `git diff` para ver o que muda, `empurrar`.
   Airtable uma interpretação que já lá estava — ~0,5 s por confirmação, a
   deitar fora.
 - O plano gratuito do Gemini dá 20 chamadas por dia. Com 6 comerciais isso não
-  chega; a conta do plano pago está em `prompts/` quando lá for posta.
+  chega; a conta do plano pago está no `CLAUDE.md` (Quotas).
+  Ver também `docs/ARQUITETURA.md`, secção 13: o uso real já passou as 20/dia.

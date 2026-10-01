@@ -414,7 +414,8 @@
             "estagio": "={{  $json.body.campos.estagio }}",
             "tipo": "={{  $json.body.campos.tipo }}",
             "id": "={{ $json.body.lead_id }}",
-            "Email": "={{ $json.body.campos.email }}"
+            "Email": "={{ $json.body.campos.email }}",
+            "alcunha": "={{ $json.body.campos.alcunha }}"
           },
           "matchingColumns": [
             "id"
@@ -784,7 +785,7 @@
               "display": true,
               "type": "string",
               "readOnly": false,
-              "removed": true
+              "removed": false
             },
             {
               "id": "ultima_nota",
@@ -1825,36 +1826,6 @@
       ],
       "id": "3dbd60f6-d509-4254-a7a9-394618f451c8",
       "name": "Update record3",
-      "credentials": {
-        "airtableTokenApi": {
-          "id": "oThQIIbePs7HgmJD",
-          "name": "Airtable Personal Access Token account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "deleteRecord",
-        "base": {
-          "__rl": true,
-          "value": "appIdD2RG5S0lWvfV",
-          "mode": "id"
-        },
-        "table": {
-          "__rl": true,
-          "value": "tbl7miNQOYxtEvquL",
-          "mode": "id"
-        },
-        "id": "={{ $json.body.evento_id }}"
-      },
-      "type": "n8n-nodes-base.airtable",
-      "typeVersion": 2.2,
-      "position": [
-        352,
-        224
-      ],
-      "id": "83b0af26-61c0-4858-aa92-eb8c10eac249",
-      "name": "Delete a record",
       "credentials": {
         "airtableTokenApi": {
           "id": "oThQIIbePs7HgmJD",
@@ -3267,6 +3238,90 @@
       ],
       "id": "705292a8-c6ce-58e8-a7d3-e56865741c99",
       "name": "Responder Duplicados"
+    },
+    {
+      "parameters": {
+        "curlImport": "",
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/appIdD2RG5S0lWvfV/tbl7miNQOYxtEvquL/{{ $json.body.evento_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "provideSslCertificates": false,
+        "sendQuery": false,
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { estado: 'cancelado' }, typecast: true }) }}",
+        "options": {},
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        352,
+        224
+      ],
+      "id": "b6e42548-0d8c-52cc-9297-204c4f833579",
+      "name": "Cancelar Evento (Agenda)",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "notes": "A acção chama-se apagar_evento por compatibilidade, mas não apaga: marca \"cancelado\" (regra do CLAUDE.md — não se apagam registos do Airtable)."
+    },
+    {
+      "parameters": {
+        "curlImport": "",
+        "method": "POST",
+        "url": "https://api.airtable.com/v0/appIdD2RG5S0lWvfV/tblYNuUEylWey2Wsf",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "provideSslCertificates": false,
+        "sendQuery": false,
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ (function(){ var b=$('Webhook').first().json.body||{}; var tipo=b.acao==='nota_manual'?'nota':'mudanca_estagio'; return JSON.stringify({ fields: { Lead: [b.lead_id], Registo: tipo+' · '+(b.lead_nome||''), tipo_registo: tipo, nota: b.nota||'' }, typecast: true }); })() }}",
+        "options": {},
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        708,
+        424
+      ],
+      "id": "72e65803-a32c-5943-a040-a90caed58684",
+      "name": "Registar no Histórico",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "notes": "Notas manuais, saídas do pipeline e reactivações do Terminal também ficam no Histórico (antes só mudavam ultima_nota e a nota anterior perdia-se)."
     }
   ],
   "connections": {
@@ -3320,7 +3375,7 @@
         ],
         [
           {
-            "node": "Delete a record",
+            "node": "Cancelar Evento (Agenda)",
             "type": "main",
             "index": 0
           }
@@ -3409,7 +3464,7 @@
       "main": [
         [
           {
-            "node": "Respond to Webhook",
+            "node": "Registar no Histórico",
             "type": "main",
             "index": 0
           }
@@ -3439,17 +3494,6 @@
       ]
     },
     "Update record3": {
-      "main": [
-        [
-          {
-            "node": "Respond to Webhook",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Delete a record": {
       "main": [
         [
           {
@@ -3519,7 +3563,7 @@
       "main": [
         [
           {
-            "node": "Respond to Webhook",
+            "node": "Registar no Histórico",
             "type": "main",
             "index": 0
           }
@@ -3530,7 +3574,7 @@
       "main": [
         [
           {
-            "node": "Respond to Webhook",
+            "node": "Registar no Histórico",
             "type": "main",
             "index": 0
           }
@@ -3564,6 +3608,28 @@
         [
           {
             "node": "Responder Duplicados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancelar Evento (Agenda)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registar no Histórico": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
             "type": "main",
             "index": 0
           }
