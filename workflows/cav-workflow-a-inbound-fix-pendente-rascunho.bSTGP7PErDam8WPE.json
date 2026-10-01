@@ -15,7 +15,8 @@
         "responseMode": "responseNode",
         "options": {
           "allowedOrigins": "*"
-        }
+        },
+        "authentication": "headerAuth"
       },
       "id": "61014434-180a-4161-87b2-20914e19d1bb",
       "name": "Webhook (voz/texto)",
@@ -25,7 +26,14 @@
         -7008,
         -416
       ],
-      "webhookId": "cav-inbound"
+      "webhookId": "cav-inbound",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "M3tiL7A5ARy3vVTR",
+          "name": "CAV · chave da app (x-cav-key)"
+        }
+      },
+      "notes": "Exige a chave da app (cabeçalho x-cav-key, credencial \"CAV · chave da app\"). Sem ela o n8n responde 403 e o Terminal pede a chave nas Definições."
     },
     {
       "parameters": {

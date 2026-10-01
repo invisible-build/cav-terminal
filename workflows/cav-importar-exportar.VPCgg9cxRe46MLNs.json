@@ -11,7 +11,8 @@
         "httpMethod": "GET",
         "path": "cav-exportar",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {},
+        "authentication": "headerAuth"
       },
       "id": "cavie000-0000-4000-8000-000000000001",
       "name": "Webhook (exportar)",
@@ -21,7 +22,14 @@
         -368,
         -160
       ],
-      "webhookId": "c2ff78e8-42a5-44cd-8f24-fb07e7ff8e36"
+      "webhookId": "c2ff78e8-42a5-44cd-8f24-fb07e7ff8e36",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "M3tiL7A5ARy3vVTR",
+          "name": "CAV · chave da app (x-cav-key)"
+        }
+      },
+      "notes": "Exige a chave da app (cabeçalho x-cav-key, credencial \"CAV · chave da app\"). Sem ela o n8n responde 403 e o Terminal pede a chave nas Definições."
     },
     {
       "parameters": {
@@ -154,7 +162,8 @@
         "httpMethod": "POST",
         "path": "cav-importar",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {},
+        "authentication": "headerAuth"
       },
       "id": "cavie000-0000-4000-8000-000000000007",
       "name": "Webhook (importar)",
@@ -164,7 +173,14 @@
         -368,
         80
       ],
-      "webhookId": "5ac0d168-71a6-478e-a007-17e70e6d3aab"
+      "webhookId": "5ac0d168-71a6-478e-a007-17e70e6d3aab",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "M3tiL7A5ARy3vVTR",
+          "name": "CAV · chave da app (x-cav-key)"
+        }
+      },
+      "notes": "Exige a chave da app (cabeçalho x-cav-key, credencial \"CAV · chave da app\"). Sem ela o n8n responde 403 e o Terminal pede a chave nas Definições."
     },
     {
       "parameters": {

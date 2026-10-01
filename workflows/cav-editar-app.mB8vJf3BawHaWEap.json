@@ -13,7 +13,8 @@
         "httpMethod": "POST",
         "path": "cav-editar",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {},
+        "authentication": "headerAuth"
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -23,7 +24,14 @@
       ],
       "id": "52869bcf-f871-43ac-92c4-a7e7b0dd39df",
       "name": "Webhook",
-      "webhookId": "adbabc81-2f31-448d-a363-57727a02368c"
+      "webhookId": "adbabc81-2f31-448d-a363-57727a02368c",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "M3tiL7A5ARy3vVTR",
+          "name": "CAV · chave da app (x-cav-key)"
+        }
+      },
+      "notes": "Exige a chave da app (cabeçalho x-cav-key, credencial \"CAV · chave da app\"). Sem ela o n8n responde 403 e o Terminal pede a chave nas Definições."
     },
     {
       "parameters": {
