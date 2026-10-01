@@ -38,6 +38,16 @@ Workflows principais: `bSTGP7PErDam8WPE` (Inbound), `7DoKXQGDJH4yivLK`
 - **Não activar nem desactivar workflows a partir daqui.**
 - **Não apagar registos do Airtable.** Apagar é sempre do lado do César.
 - **A chave da API do n8n vive no ambiente**, nunca no repositório.
+- **Os webhooks do Terminal exigem a chave da app** (cabeçalho `x-cav-key`):
+  `cav-dados`, `cav-editar`, `cav-inbound`, `cav-ler-fin`, `cav-exportar`,
+  `cav-importar`, todos com a credencial "CAV · chave da app (x-cav-key)" no
+  n8n. A chave vive em `CAV_APP_KEY` no `.env` e nas Definições do Terminal de
+  cada aparelho — nunca no repositório nem no `index.html` (é público no
+  GitHub Pages). Um webhook novo do Terminal nasce já com
+  `authentication: headerAuth` e essa credencial. Abertos de propósito:
+  `cav-agenda-ics` (as apps de calendário não mandam cabeçalhos) e
+  `cav-secretaria-prompt-gemini` (sem dados de clientes). Trocar a chave =
+  mudar o valor da credencial no n8n e voltar a distribuí-la.
 
 ## O que custa dinheiro, e porquê
 
