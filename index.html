@@ -325,6 +325,13 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
 .rec-btn{flex:none;padding:7px 12px;border-radius:8px;font-size:12px;font-weight:700;background:var(--gold);color:#000;border:none;cursor:pointer}
 .rec-btn.sec{background:var(--s2);color:var(--text);border:1px solid var(--border)}
 .rec.perdida{--c:var(--border2);opacity:.6}
+.dup{background:var(--s2);border:1px solid var(--orange2);border-radius:10px;padding:12px;margin-top:4px;font-size:12.5px}
+.dup b.t{display:block;color:var(--orange2);margin-bottom:6px}
+.dup .it{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--border)}
+.dup .it:first-of-type{border-top:none}
+.dup .it span{flex:1}
+.dup .it small{color:var(--text2)}
+.dup button{background:none;border:1px solid var(--border2);color:var(--text);border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:700;cursor:pointer}
 .fase-tag{font-size:9.5px;font-weight:800;letter-spacing:.5px;color:#000;background:var(--gold2);border-radius:99px;padding:1px 7px;margin-left:6px;vertical-align:1px}
 .m-act{display:flex;gap:8px;margin-top:16px}
 .m-act button{flex:1;padding:11px;border-radius:9px;font-size:13px;font-weight:700}
@@ -654,9 +661,10 @@ main{flex:1;min-height:0;overflow:hidden;position:relative}
       <label>Estágio</label>
       <select id="nlEstagio"></select>
     </div>
+    <div id="nlDup" class="dup" hidden></div>
     <div class="m-act">
       <button class="cancel" onclick="closeM('mNovaLead')">Cancelar</button>
-      <button class="ok" onclick="guardarNovaLead()">Criar</button>
+      <button class="ok" id="nlCriar" onclick="guardarNovaLead()">Criar</button>
     </div>
   </div>
 </div>
@@ -1291,10 +1299,25 @@ async function moverLeadEstagio(item,novoEstagio){
 /* ---------- 6c. PIPELINE — criar lead manualmente ---------- */
 function abrirNovaLead(estagioPreset){
   $('nlNome').value=''; $('nlTelefone').value=''; $('nlEmail').value=''; $('nlValor').value='';
+  NL_FORCAR=null; $('nlDup').hidden=true; $('nlCriar').textContent='Criar';
   $('nlOrigem').value=''; $('nlTipo').value='';
   const est=S.estagios.length?S.estagios:ESTAGIOS_FALLBACK;
   $('nlEstagio').innerHTML=est.map(e=>'<option value="'+esc(e)+'"'+(e===(estagioPreset||est[0])?' selected':'')+'>'+esc(rotulo(e))+'</option>').join('');
   openM('mNovaLead');
+}
+// Assinatura dos dados já verificados: mudar nome, telefone ou email volta a verificar.
+let NL_FORCAR=null;
+function mostrarDuplicados(dups,assinatura){
+  const nomeCom=id=>{ const c=S.comerciais.find(x=>x.id===id); return c?c.nome.split(' ')[0]:'outro comercial'; };
+  $('nlDup').innerHTML='<b class="t">'+(dups.length===1?'Já existe uma lead parecida':'Já existem '+dups.length+' leads parecidas')+'</b>'
+    +dups.map(d=>{
+      const minha=!!leadDe(d.id);
+      return '<div class="it"><span>'+esc(d.nome)+'<br><small>'+esc(rotulo(d.estagio))+(minha?'':' · de '+esc(nomeCom(d.comercial_id)))+'</small></span>'
+        +(minha?'<button onclick="closeM(\'mNovaLead\');abrirLead(\''+esc(d.id)+'\')">Abrir</button>':'')+'</div>';
+    }).join('')
+    +'<div style="margin-top:8px;color:var(--text2)">Se for a mesma pessoa, abre a que já existe'
+    +(dups.some(d=>d.estagio==='nutricao')?' (as que estão fora do pipeline reactivam-se no Recuperar)':'')+'. Se não for, carrega outra vez em “Criar mesmo assim”.</div>';
+  $('nlDup').hidden=false; NL_FORCAR=assinatura; $('nlCriar').textContent='Criar mesmo assim';
 }
 async function guardarNovaLead(){
   if(OCUPADO) return;
@@ -1302,9 +1325,22 @@ async function guardarNovaLead(){
   if(!nome){ toast('Dá um nome à lead.'); return; }
   const email=$('nlEmail').value.trim();
   if(!emailValido(email)){ toast('O email não parece válido.','err'); return; }
+  const telefone=$('nlTelefone').value.trim();
+  // Antes de criar: há alguém com o mesmo telefone, email ou nome, em qualquer comercial
+  // ou fase (incluindo Fora do pipeline)? Não bloqueia — mostra e deixa decidir.
+  const assinatura=[nome,telefone,email].join('|').toLowerCase();
+  if(NL_FORCAR!==assinatura){
+    $('nlDup').hidden=true; $('nlCriar').textContent='Criar';
+    OCUPADO=true;
+    let dups=[];
+    try{ dups=(await apiEditar({acao:'verificar_duplicado',nome,telefone,email})).duplicados||[]; }
+    catch(e){ /* sem verificação não se impede a criação */ }
+    finally{ OCUPADO=false; }
+    if(dups.length){ mostrarDuplicados(dups,assinatura); return; }
+  }
   const campos={
     nome,
-    telefone:$('nlTelefone').value.trim(),
+    telefone,
     email,
     valor:$('nlValor').value!==''?Number($('nlValor').value):null,
     origem_lead:$('nlOrigem').value.trim(),

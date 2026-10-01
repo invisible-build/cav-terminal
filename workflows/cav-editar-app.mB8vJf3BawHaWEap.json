@@ -354,6 +354,30 @@
               },
               "renameOutput": true,
               "outputKey": "resolver_pendencia"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a5d6af10-db33-541e-a81d-ed056d9b1c7e",
+                    "leftValue": "={{ $json.body.acao }}",
+                    "rightValue": "verificar_duplicado",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "verificar_duplicado"
             }
           ]
         },
@@ -3172,6 +3196,77 @@
         }
       },
       "notes": "Terminal: botão ✓ numa pendência. Até 30/09 nada fechava pendências (67 todas abertas)."
+    },
+    {
+      "parameters": {
+        "curlImport": "",
+        "method": "GET",
+        "url": "https://api.airtable.com/v0/appIdD2RG5S0lWvfV/tblO1ODpXI5GInKGn",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "provideSslCertificates": false,
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ (function(){ var b=$json.body||{}; var q=function(s){return String(s||'').replace(/['\"\\\\]/g,'').toLowerCase().trim();}; var c=[]; var t=String(b.telefone||'').replace(/\\D/g,'').slice(-9); if(t.length===9) c.push(\"RIGHT(REGEX_REPLACE({Telefone}&'','[^0-9]',''),9)='\"+t+\"'\"); if(b.email) c.push(\"LOWER({Email}&'')='\"+q(b.email)+\"'\"); if(b.nome) c.push(\"LOWER(TRIM({Nome}&''))='\"+q(b.nome)+\"'\"); return c.length ? 'OR('+c.join(',')+')' : 'FALSE()'; })() }}"
+            },
+            {
+              "name": "maxRecords",
+              "value": "5"
+            }
+          ]
+        },
+        "sendHeaders": false,
+        "sendBody": false,
+        "options": {},
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        944,
+        680
+      ],
+      "id": "015305b9-4755-577d-a3f1-2338ab7d5ebf",
+      "name": "Procurar Duplicados",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "notes": "Terminal, antes de criar uma lead à mão: procura por telefone (últimos 9 dígitos), email ou nome, em todos os comerciais e fases."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Duplicados para o formulario \"Nova lead\" do Terminal: so o que o comercial precisa\n// para decidir (nome, fase, de quem e). Nada de telefones nem emails de volta.\nconst recs = ($input.first().json.records) || [];\nreturn [{ json: { ok: true, duplicados: recs.map(r => {\n  const f = r.fields || {};\n  return { id: r.id, nome: f.Nome || '?', estagio: f.estagio || 'lead', comercial_id: Array.isArray(f.Comercial) ? f.Comercial[0] : null };\n}) } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1164,
+        680
+      ],
+      "id": "b214d06d-82e3-5ccb-a70f-a98305d48c64",
+      "name": "Montar Duplicados"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1384,
+        680
+      ],
+      "id": "705292a8-c6ce-58e8-a7d3-e56865741c99",
+      "name": "Responder Duplicados"
     }
   ],
   "connections": {
@@ -3275,6 +3370,13 @@
         [
           {
             "node": "Resolver Pendência",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Procurar Duplicados",
             "type": "main",
             "index": 0
           }
@@ -3440,6 +3542,28 @@
         [
           {
             "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procurar Duplicados": {
+      "main": [
+        [
+          {
+            "node": "Montar Duplicados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Duplicados": {
+      "main": [
+        [
+          {
+            "node": "Responder Duplicados",
             "type": "main",
             "index": 0
           }
