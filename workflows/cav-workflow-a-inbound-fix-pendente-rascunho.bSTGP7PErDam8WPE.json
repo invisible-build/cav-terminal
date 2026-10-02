@@ -5,7 +5,8 @@
   "settings": {
     "availableInMCP": false,
     "executionOrder": "v1",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "errorWorkflow": "1TTCFjRVMV23nNul"
   },
   "nodes": [
     {
@@ -901,6 +902,48 @@
       "id": "b7527f3c-1bca-57c8-ba48-3fb19fecd658",
       "name": "Responder (resposta inválida IA)",
       "notes": "Resposta da IA cortada ou com JSON inválido (ex.: ciclo a repetir um campo até ao limite de tokens). Sem isto o Inbound rebentava com erro seco."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Falha silenciosa (ia_sem_resposta): o comercial ja recebeu o aviso; isto avisa o Cesar por email\n// atraves do workflow \"CAV · Alertas\". No n8n estas execucoes aparecem como \"success\".\nlet mp = {}; try { mp = $('Montar Payload').first().json; } catch (e) {}\nconst j = $input.first().json || {};\nconst erro = (j.error && (j.error.message || j.error.description || j.error)) || j.message || '';\nreturn [{ json: { tipo: 'ia_sem_resposta', comercial: (mp.dinamico && mp.dinamico.VENDEDOR) || '', transcricao: mp.texto || mp.transcricao || '', erro: String(erro).slice(0, 300), execucao: $execution.id } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3504,
+        -208
+      ],
+      "id": "ddc381bf-1293-5167-af4b-b858eb2bbd8a",
+      "name": "Alerta: IA sem resposta"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Falha silenciosa (ia_resposta_invalida): o comercial ja recebeu o aviso; isto avisa o Cesar por email\n// atraves do workflow \"CAV · Alertas\". No n8n estas execucoes aparecem como \"success\".\nlet mp = {}; try { mp = $('Montar Payload').first().json; } catch (e) {}\nconst j = $input.first().json || {};\nconst erro = (j.error && (j.error.message || j.error.description || j.error)) || j.message || '';\nreturn [{ json: { tipo: 'ia_resposta_invalida', comercial: (mp.dinamico && mp.dinamico.VENDEDOR) || '', transcricao: mp.texto || mp.transcricao || '', erro: String(erro).slice(0, 300), execucao: $execution.id } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2980,
+        -456
+      ],
+      "id": "5fab2fe1-5445-56f4-b436-1ec4b74b3928",
+      "name": "Alerta: resposta inválida"
+    },
+    {
+      "parameters": {
+        "workflowId": "1TTCFjRVMV23nNul",
+        "options": {}
+      },
+      "id": "0c0b3a4f-46f9-50b4-8ad5-5192b7c53c21",
+      "name": "Avisar por email",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        -3264,
+        -128
+      ],
+      "onError": "continueRegularOutput",
+      "notes": "Chama \"CAV · Alertas\". Se o email falhar, não muda nada para o comercial (a resposta já foi enviada)."
     }
   ],
   "connections": {
@@ -1284,6 +1327,50 @@
         [
           {
             "node": "Montar Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder (falha IA)": {
+      "main": [
+        [
+          {
+            "node": "Alerta: IA sem resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder (resposta inválida IA)": {
+      "main": [
+        [
+          {
+            "node": "Alerta: resposta inválida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alerta: IA sem resposta": {
+      "main": [
+        [
+          {
+            "node": "Avisar por email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alerta: resposta inválida": {
+      "main": [
+        [
+          {
+            "node": "Avisar por email",
             "type": "main",
             "index": 0
           }

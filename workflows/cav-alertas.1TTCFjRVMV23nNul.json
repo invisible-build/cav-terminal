@@ -1,0 +1,104 @@
+{
+  "id": "1TTCFjRVMV23nNul",
+  "name": "CAV · Alertas",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "721efdc9-03aa-5c99-b23d-a2059e0b9744",
+      "name": "Erro (qualquer workflow)"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        200
+      ],
+      "id": "ebd79004-f268-55d7-99b0-c70ea3c83b27",
+      "name": "Alerta do Inbound"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Para onde vao os alertas. REMETENTE tem de ser a conta da credencial de email (SMTP).\nconst PARA = 'DEFINIR@exemplo.pt';\nconst REMETENTE = 'DEFINIR@exemplo.pt';\nconst N8N = 'https://olivedrab-cat-986392.hostingersite.com';\nconst esc = s => String(s == null ? '' : s).replace(/[&<>\"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[c]));\nconst quando = new Date().toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });\nconst tabela = linhas => '<table style=\"border-collapse:collapse;font:14px/1.5 system-ui,sans-serif\">' + linhas.filter(l => l[1] !== undefined && l[1] !== null && l[1] !== '').map(([k, v]) =>\n  '<tr><td style=\"padding:4px 14px 4px 0;color:#666;vertical-align:top\">' + esc(k) + '</td><td style=\"padding:4px 0\">' + (String(v).startsWith('http') ? '<a href=\"' + esc(v) + '\">abrir no n8n</a>' : esc(v)) + '</td></tr>').join('') + '</table>';\n\n// Um so formato para os dois caminhos: (1) erro de qualquer workflow — Error Trigger,\n// ligado pelo settings.errorWorkflow de cada um; (2) falha silenciosa avisada pelo Inbound\n// (a IA nao respondeu, ou respondeu estragado) — que no n8n aparece como \"success\".\nconst j = $input.first().json || {};\nlet assunto, linhas;\nif (j.execution || j.trigger) {\n  const ex = j.execution || {}, wf = j.workflow || {}, err = ex.error || (j.trigger || {}).error || {};\n  assunto = '⚠️ CAV: falhou ' + (wf.name || 'um workflow');\n  linhas = [['Workflow', wf.name], ['Nó', ex.lastNodeExecuted || (err.node || {}).name], ['Erro', err.message || err.description],\n    ['Quando', quando], ['Execução', ex.url || (ex.id && wf.id ? N8N + '/workflow/' + wf.id + '/executions/' + ex.id : '')]];\n} else {\n  const TIPOS = { ia_sem_resposta: 'A IA não respondeu — provavelmente o limite diário do Gemini', ia_resposta_invalida: 'A IA devolveu uma resposta estragada — nada foi gravado' };\n  assunto = '⚠️ CAV: ' + (TIPOS[j.tipo] || j.tipo || 'falha');\n  linhas = [['O que aconteceu', TIPOS[j.tipo] || j.tipo], ['Comercial', j.comercial], ['Disse', j.transcricao], ['Detalhe', j.erro],\n    ['Quando', quando], ['Execução', j.execucao ? N8N + '/workflow/bSTGP7PErDam8WPE/executions/' + j.execucao : '']];\n}\nconst html = '<p style=\"font:15px system-ui,sans-serif\"><b>' + esc(assunto) + '</b></p>' + tabela(linhas)\n  + (j.execution || j.trigger ? '' : '<p style=\"font:12px system-ui,sans-serif;color:#888\">O comercial já viu um aviso no Terminal. Este email é só para ti.</p>');\nreturn [{ json: { para: PARA, remetente: REMETENTE, assunto, html } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        100
+      ],
+      "id": "3f52fb1a-3d74-5163-b624-719a983d36fa",
+      "name": "Montar alerta"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.remetente }}",
+        "toEmail": "={{ $json.para }}",
+        "subject": "={{ $json.assunto }}",
+        "emailFormat": "html",
+        "html": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        480,
+        100
+      ],
+      "id": "1ad6caef-d77f-5d76-91a1-84eeb26efbc4",
+      "name": "Enviar email",
+      "notes": "Precisa da credencial SMTP \"CAV · email alertas\".",
+      "webhookId": "9a528748-3465-4ca0-989b-1e4f52dca236"
+    }
+  ],
+  "connections": {
+    "Erro (qualquer workflow)": {
+      "main": [
+        [
+          {
+            "node": "Montar alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alerta do Inbound": {
+      "main": [
+        [
+          {
+            "node": "Montar alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar alerta": {
+      "main": [
+        [
+          {
+            "node": "Enviar email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

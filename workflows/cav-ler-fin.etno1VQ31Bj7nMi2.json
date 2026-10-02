@@ -3,7 +3,8 @@
   "name": "CAV · Ler FIN",
   "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "errorWorkflow": "1TTCFjRVMV23nNul"
   },
   "nodes": [
     {

@@ -1,0 +1,303 @@
+{
+  "id": "uEvdCGMf4RMXtRa0",
+  "name": "CAV · Resumo diário",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "1TTCFjRVMV23nNul",
+    "timezone": "Europe/Lisbon"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 20 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "e7a0f4a1-6233-5e7f-a0d1-154631052ad4",
+      "name": "Todos os dias às 20:00"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.airtable.com/v0/appIdD2RG5S0lWvfV/Eventos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ \"DATETIME_FORMAT(SET_TIMEZONE(CREATED_TIME(),'Europe/Lisbon'),'YYYY-MM-DD')=\"+\"'\"+$now.setZone('Europe/Lisbon').toFormat('yyyy-MM-dd')+\"'\" }}"
+            },
+            {
+              "name": "pageSize",
+              "value": "100"
+            },
+            {
+              "name": "fields[]",
+              "value": "Estado"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "2eb8877f-a59e-50de-89d6-d360260fce71",
+      "name": "Eventos de hoje",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.airtable.com/v0/appIdD2RG5S0lWvfV/tblO1ODpXI5GInKGn",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ \"DATETIME_FORMAT(SET_TIMEZONE(CREATED_TIME(),'Europe/Lisbon'),'YYYY-MM-DD')=\"+\"'\"+$now.setZone('Europe/Lisbon').toFormat('yyyy-MM-dd')+\"'\" }}"
+            },
+            {
+              "name": "pageSize",
+              "value": "100"
+            },
+            {
+              "name": "fields[]",
+              "value": "Nome"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "fc717a31-b1c0-565d-8e8b-2a546dce26ca",
+      "name": "Leads de hoje",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.airtable.com/v0/appIdD2RG5S0lWvfV/tblYNuUEylWey2Wsf",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ \"DATETIME_FORMAT(SET_TIMEZONE(CREATED_TIME(),'Europe/Lisbon'),'YYYY-MM-DD')=\"+\"'\"+$now.setZone('Europe/Lisbon').toFormat('yyyy-MM-dd')+\"'\" }}"
+            },
+            {
+              "name": "pageSize",
+              "value": "100"
+            },
+            {
+              "name": "fields[]",
+              "value": "tipo_registo"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "id": "e4f903b8-20e1-5602-ab77-f352314326d5",
+      "name": "Histórico de hoje",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.airtable.com/v0/appIdD2RG5S0lWvfV/Pendencias",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "={{ \"AND({estado}='resolvida',DATETIME_FORMAT(SET_TIMEZONE(LAST_MODIFIED_TIME(),'Europe/Lisbon'),'YYYY-MM-DD')='\"+$now.setZone('Europe/Lisbon').toFormat('yyyy-MM-dd')+\"')\" }}"
+            },
+            {
+              "name": "pageSize",
+              "value": "100"
+            },
+            {
+              "name": "fields[]",
+              "value": "estado"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ],
+      "id": "5ce8854e-4a54-5581-9d51-b15847f794cb",
+      "name": "Pendências resolvidas hoje",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "oThQIIbePs7HgmJD",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Para onde vao os alertas. REMETENTE tem de ser a conta da credencial de email (SMTP).\nconst PARA = 'DEFINIR@exemplo.pt';\nconst REMETENTE = 'DEFINIR@exemplo.pt';\nconst N8N = 'https://olivedrab-cat-986392.hostingersite.com';\nconst esc = s => String(s == null ? '' : s).replace(/[&<>\"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[c]));\nconst quando = new Date().toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });\nconst tabela = linhas => '<table style=\"border-collapse:collapse;font:14px/1.5 system-ui,sans-serif\">' + linhas.filter(l => l[1] !== undefined && l[1] !== null && l[1] !== '').map(([k, v]) =>\n  '<tr><td style=\"padding:4px 14px 4px 0;color:#666;vertical-align:top\">' + esc(k) + '</td><td style=\"padding:4px 0\">' + (String(v).startsWith('http') ? '<a href=\"' + esc(v) + '\">abrir no n8n</a>' : esc(v)) + '</td></tr>').join('') + '</table>';\n\n// Resumo do dia, a partir do Airtable. Cada mensagem nova de um comercial cria um Evento\n// (uma confirmacao \"sim\" reaproveita o da pergunta), por isso Eventos de hoje = mensagens\n// interpretadas = chamadas a IA. Dia sem actividade: nao envia nada.\nconst recs = n => { try { return $(n).first().json.records || []; } catch (e) { return []; } };\nconst ev = recs('Eventos de hoje'), leads = recs('Leads de hoje'), hist = recs('Histórico de hoje'), pend = recs('Pendências resolvidas hoje');\nif (!ev.length && !hist.length) return [];\nconst conta = (rs, campo) => rs.reduce((m, r) => { const v = (r.fields || {})[campo] || '—'; m[v] = (m[v] || 0) + 1; return m; }, {});\nconst est = conta(ev, 'Estado'), tipos = conta(hist, 'tipo_registo');\nconst falhas = (est.recebido || 0) + (est.interpretado || 0);\nconst NOMES = { contacto: 'contactos', mudanca_estagio: 'mudanças de fase', checklist_documento: 'documentos', banco_proposta: 'propostas de banco',\n  lead_nova: 'leads novas', dados_lead: 'dados corrigidos', proposta: 'propostas enviadas', nota: 'notas', estado_comercial: 'leituras do negócio' };\nconst dia = new Date().toLocaleDateString('pt-PT', { timeZone: 'Europe/Lisbon', weekday: 'long', day: 'numeric', month: 'numeric' });\nconst linhas = [\n  ['Mensagens interpretadas pela IA', ev.length],\n  ['Confirmadas e gravadas', est.comprometido || 0],\n  ['Cartões por responder', est.pendente || 0],\n  ['Corrigidas pelo comercial («não»)', est.rejeitado || 0],\n  ['Ficaram a meio (falhas)', falhas],\n  ['Leads novas', leads.length],\n  ['Pendências resolvidas', pend.length],\n  ['No histórico', Object.entries(tipos).map(([k, v]) => v + ' ' + (NOMES[k] || k)).join(', ')],\n];\nconst assunto = '📊 CAV — ' + dia + ': ' + ev.length + ' mensagens' + (falhas ? ', ' + falhas + ' com falha' : '');\nconst html = '<p style=\"font:15px system-ui,sans-serif\"><b>Resumo de ' + esc(dia) + '</b></p>' + tabela(linhas)\n  + '<p style=\"font:12px system-ui,sans-serif;color:#888\">Plano gratuito do Gemini: 20 chamadas por dia (confirmar o plano actual).</p>';\nreturn [{ json: { para: PARA, remetente: REMETENTE, assunto, html } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "id": "30593dbd-00f5-52c5-8706-e53007361dd6",
+      "name": "Montar resumo"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.remetente }}",
+        "toEmail": "={{ $json.para }}",
+        "subject": "={{ $json.assunto }}",
+        "emailFormat": "html",
+        "html": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1320,
+        0
+      ],
+      "id": "d60d4eed-1365-5979-8263-f13733bc8a7b",
+      "name": "Enviar email",
+      "notes": "Precisa da credencial SMTP \"CAV · email alertas\".",
+      "webhookId": "b79c40c9-1d80-4119-80a7-978026817787"
+    }
+  ],
+  "connections": {
+    "Todos os dias às 20:00": {
+      "main": [
+        [
+          {
+            "node": "Eventos de hoje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Eventos de hoje": {
+      "main": [
+        [
+          {
+            "node": "Leads de hoje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leads de hoje": {
+      "main": [
+        [
+          {
+            "node": "Histórico de hoje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Histórico de hoje": {
+      "main": [
+        [
+          {
+            "node": "Pendências resolvidas hoje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pendências resolvidas hoje": {
+      "main": [
+        [
+          {
+            "node": "Montar resumo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar resumo": {
+      "main": [
+        [
+          {
+            "node": "Enviar email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

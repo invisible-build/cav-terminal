@@ -14,6 +14,13 @@
     "nos": 5
   },
   {
+    "ficheiro": "cav-alertas.1TTCFjRVMV23nNul.json",
+    "id": "1TTCFjRVMV23nNul",
+    "nome": "CAV · Alertas",
+    "activo": false,
+    "nos": 4
+  },
+  {
     "ficheiro": "cav-app-estatico.c2lX60t7QMxeEHe4.json",
     "id": "c2lX60t7QMxeEHe4",
     "nome": "CAV · App (estático)",
@@ -77,6 +84,13 @@
     "nos": 12
   },
   {
+    "ficheiro": "cav-resumo-diario.uEvdCGMf4RMXtRa0.json",
+    "id": "uEvdCGMf4RMXtRa0",
+    "nome": "CAV · Resumo diário",
+    "activo": false,
+    "nos": 7
+  },
+  {
     "ficheiro": "cav-secretaria-prompt-estatico.FjelO9bMQh1Mr21I.json",
     "id": "FjelO9bMQh1Mr21I",
     "nome": "CAV · Secretária Prompt (estático)",
@@ -95,7 +109,7 @@
     "id": "bSTGP7PErDam8WPE",
     "nome": "CAV — Workflow A · Inbound (FIX pendente - rascunho)",
     "activo": true,
-    "nos": 36
+    "nos": 39
   },
   {
     "ficheiro": "cav-workflow-a-inbound-write-path.q9usAIFsJm1MDQLb.json",
