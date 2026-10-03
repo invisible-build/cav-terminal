@@ -32,6 +32,9 @@ const api = async (metodo, corpo) => {
   });
   if (!r.ok) {
     console.error(`falhou (${metodo}): HTTP ${r.status}`, (await r.text()).slice(0, 400));
+    // Visto a 03/10/2026: quando o n8n recusa publicar (ex.: um sub-workflow chamado ainda
+    // não está publicado), a versão nova pode ficar gravada como rascunho na mesma.
+    if (metodo === 'PUT') console.error('Atenção: o rascunho no n8n pode já ter a versão nova; a publicada continua a anterior.');
     process.exit(1);
   }
   return r.json();
